@@ -1,0 +1,114 @@
+{% extends "templates/web.html" %} {% block title %}{{ _("Buy WiFi Voucher") }}{% endblock %} {%
+block page_content %}
+<div class="voucher-checkout" style="max-width: 640px; margin: 0 auto">
+	<h3 class="mb-4">{{ _("Buy WiFi Voucher") }}</h3>
+
+	{% if not plans %}
+	<div class="alert alert-info">{{ _("No voucher plans are currently available.") }}</div>
+	{% else %}
+	<div id="plan-list">
+		{% for plan in plans %}
+		<div
+			class="card mb-2"
+			data-plan="{{ plan.name | e }}"
+			data-price-html="{{ frappe.utils.fmt_money(plan.price, currency=plan.currency) | e }}"
+		>
+			<div class="card-body d-flex justify-content-between align-items-center">
+				<div>
+					<div class="font-weight-bold">{{ plan.plan_name | e }}</div>
+					{% if plan.description %}
+					<div class="small text-muted">{{ plan.description | e }}</div>
+					{% endif %}
+				</div>
+				<div class="text-right">
+					<div class="font-weight-bold">
+						{{ frappe.utils.fmt_money(plan.price, currency=plan.currency) | e }}
+					</div>
+					<button class="btn btn-primary btn-sm mt-1 plan-select">
+						{{ _("Select") }}
+					</button>
+				</div>
+			</div>
+		</div>
+		{% endfor %}
+	</div>
+
+	<div id="checkout-panel" class="mt-4" style="display: none">
+		<h5 class="mb-3">{{ _("Checkout") }}</h5>
+		<div class="form-group">
+			<label>{{ _("Selected Plan") }}</label>
+			<div id="selected-plan" class="form-control"></div>
+		</div>
+		<div class="form-group">
+			<label>{{ _("Phone Number") }} <span class="text-danger">*</span></label>
+			<input
+				type="text"
+				class="form-control"
+				id="phone-number"
+				placeholder="e.g. 0771234567"
+			/>
+		</div>
+		<div class="form-group">
+			<label>{{ _("Payment Method") }}</label>
+			<select class="form-control" id="payment-method">
+				<option value="EcoCash" selected>EcoCash</option>
+				<option value="InnBucks">InnBucks</option>
+				<option value="Omari">Omari</option>
+			</select>
+		</div>
+		<button class="btn btn-primary btn-block" id="pay-button">{{ _("Pay Now") }}</button>
+	</div>
+
+	<div id="status-panel" class="mt-4" style="display: none"></div>
+
+	<div id="checkout-error-sink" style="display: none"></div>
+	<style>
+		#checkout-error-sink {
+			display: none !important;
+		}
+	</style>
+
+	<div id="result-panel" class="mt-4" style="display: none">
+		<div class="alert alert-success">
+			<h5>{{ _("Payment successful!") }}</h5>
+			<div class="mb-2">{{ _("Use this voucher code to log in to the WiFi network:") }}</div>
+			<div
+				id="voucher-code"
+				class="text-center py-3"
+				style="
+					font-size: 1.6rem;
+					font-weight: bold;
+					letter-spacing: 0.15em;
+					border: 2px dashed #28a745;
+					border-radius: 6px;
+				"
+			></div>
+			<button
+				class="btn btn-outline-secondary btn-block mt-3"
+				id="print-button"
+				onclick="window.print()"
+			>
+				{{ _("Print Receipt") }}
+			</button>
+		</div>
+	</div>
+	{% endif %}
+</div>
+
+<style>
+	@media print {
+		#plan-list,
+		#checkout-panel,
+		#status-panel,
+		.navbar,
+		.web-footer,
+		.breadcrumb,
+		#print-button {
+			display: none !important;
+		}
+		#result-panel {
+			display: block !important;
+		}
+	}
+</style>
+{% endblock %}

@@ -8,7 +8,7 @@ app_license = "mit"
 # Apps
 # ------------------
 
-# required_apps = []
+required_apps = ["frappe", "erpnext", "payments", "pesepay"]
 
 # Each item in the list will be shown as an app in the apps page
 # add_to_apps_screen = [
@@ -42,8 +42,13 @@ app_license = "mit"
 # include js in page
 # page_js = {"page" : "public/js/file.js"}
 
-# include js in doctype views
-# doctype_js = {"doctype" : "public/js/doctype.js"}
+# Show auto-created voucher codes on the POS completed-order (receipt) screen.
+# Loaded globally and self-guards to only patch the POS page (see the JS).
+app_include_js = ["/assets/radius_desk/js/pos_voucher_summary.js"]
+
+# The POS "Buy Voucher" button was removed; vouchers are now created
+# automatically on invoice submit (see doc_events below).
+doctype_js = {}
 # doctype_list_js = {"doctype" : "public/js/doctype_list.js"}
 # doctype_tree_js = {"doctype" : "public/js/doctype_tree.js"}
 # doctype_calendar_js = {"doctype" : "public/js/doctype_calendar.js"}
@@ -138,34 +143,25 @@ app_license = "mit"
 # ---------------
 # Hook on document methods and events
 
-# doc_events = {
-# 	"*": {
-# 		"on_update": "method",
-# 		"on_cancel": "method",
-# 		"on_trash": "method"
-# 	}
-# }
+# Auto-create a RadiusDesk voucher when an invoice containing a Voucher Plan
+# item is submitted (POS or Sales). Replaces the old POS "Buy Voucher" button.
+doc_events = {
+	"POS Invoice": {
+		"on_submit": "radius_desk.radius_desk.utils.voucher_automation.create_vouchers_for_invoice"
+	},
+	"Sales Invoice": {
+		"on_submit": "radius_desk.radius_desk.utils.voucher_automation.create_vouchers_for_invoice"
+	},
+}
 
 # Scheduled Tasks
 # ---------------
 
-# scheduler_events = {
-# 	"all": [
-# 		"radius_desk.tasks.all"
-# 	],
-# 	"daily": [
-# 		"radius_desk.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"radius_desk.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"radius_desk.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"radius_desk.tasks.monthly"
-# 	],
-# }
+scheduler_events = {
+	"daily": ["radius_desk.radius_desk.utils.pos_infra.ensure_daily_pos_opening_entry"],
+}
+
+after_migrate = ["radius_desk.installer.after_migrate"]
 
 # Testing
 # -------
@@ -255,4 +251,3 @@ app_license = "mit"
 # ------------
 # List of apps whose translatable strings should be excluded from this app's translations.
 # ignore_translatable_strings_from = []
-

@@ -1,0 +1,108 @@
+{
+ "actions": [],
+ "allow_bulk_edit": 1,
+ "allow_rename": 1,
+ "creation": "2026-08-18 22:44:09.308793",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+  "field_order": [
+   "server_url",
+   "username",
+   "password",
+   "cloud_id",
+   "section_break_defaults",
+   "default_company",
+   "default_walkin_customer",
+   "pesepay_gateway",
+   "selling_price_list"
+  ],
+ "fields": [
+  {
+   "fieldname": "server_url",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Server URL",
+   "reqd": 1
+  },
+  {
+   "fieldname": "username",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Username",
+   "reqd": 1
+  },
+  {
+   "fieldname": "password",
+   "fieldtype": "Password",
+   "in_list_view": 1,
+   "label": "Password",
+   "reqd": 1
+  },
+  {
+   "fieldname": "cloud_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Cloud ID",
+   "reqd": 1
+  },
+  {
+   "fieldname": "section_break_defaults",
+   "fieldtype": "Section Break",
+   "label": "Defaults"
+  },
+  {
+   "fieldname": "default_company",
+   "fieldtype": "Link",
+   "label": "Default Company",
+   "options": "Company",
+   "reqd": 1
+  },
+  {
+   "fieldname": "default_walkin_customer",
+   "fieldtype": "Link",
+   "label": "Default Walk-in Customer",
+   "options": "Customer",
+   "reqd": 1
+  },
+  {
+   "fieldname": "pesepay_gateway",
+   "fieldtype": "Link",
+   "label": "Pesepay Gateway",
+   "options": "Payment Gateway",
+   "reqd": 1
+  },
+  {
+   "fieldname": "selling_price_list",
+   "fieldtype": "Link",
+   "label": "Selling Price List",
+   "options": "Price List",
+   "description": "Price list that holds Voucher Plan item prices. This is the single source of truth for voucher prices (overrides the plan's Price field)."
+  }
+ ],
+ "grid_page_length": 50,
+ "index_web_pages_for_search": 1,
+ "issingle": 1,
+ "links": [],
+  "modified": "2026-08-22 00:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Radius Desk",
+ "name": "Radius Desk Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  }
+ ],
+ "row_format": "Dynamic",
+ "rows_threshold_for_grid_search": 20,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": []
+}
