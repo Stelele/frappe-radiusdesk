@@ -31,30 +31,32 @@ frappe.ready(() => {
 	$method.on("change", show_method_hint);
 
 	// Deliver the voucher code to the hotspot login page (embed mode only).
-	// - Full-page fallback mode (RD_EMBED.linklogin known): top-level redirect
-	//   with the code in the URL fragment. Navigation is never mixed-content
-	//   blocked (a cross-scheme form POST would be); the fragment is not sent
-	//   to the router or logged.
-	// - Iframe mode: postMessage to the parent. targetOrigin is the parent's
-	//   origin from document.referrer — NEVER '*' (an evil embedding page
-	//   could harvest the code). If the referrer is unavailable, do nothing:
-	//   the code stays on screen for manual entry.
 	function deliver_code(code) {
 		if (!window.RD_EMBED) return;
+		// Framed (iframe embed): deliver via postMessage. targetOrigin is the
+		// parent's origin from document.referrer — NEVER '*' (an evil embedding
+		// page could harvest the code). If the referrer is unavailable, do
+		// nothing: the code stays on screen for manual entry.
+		if (window.parent !== window) {
+			let target;
+			try {
+				target = new URL(document.referrer).origin;
+			} catch (e) {
+				return;
+			}
+			window.parent.postMessage({ source: "rd-voucher", code: code }, target);
+			return;
+		}
+		// Top-level full-page fallback (linklogin known): redirect with the code
+		// in the URL fragment. A top-level navigation is never mixed-content
+		// blocked (a cross-scheme form POST would be); the fragment is not sent
+		// to the router or logged.
 		if (window.RD_EMBED.linklogin) {
 			set_status(__("Connecting you to the internet..."));
 			setTimeout(function () {
 				window.location.href = window.RD_EMBED.linklogin + "#rd-voucher=" + encodeURIComponent(code);
 			}, 1500);
-			return;
 		}
-		if (window.parent === window) return;
-		try {
-			var target = new URL(document.referrer).origin;
-		} catch (e) {
-			return;
-		}
-		window.parent.postMessage({ source: "rd-voucher", code: code }, target);
 	}
 
 	$planList.on("click", ".plan-select", function () {
