@@ -17,6 +17,8 @@ def retry_fulfillment_failed_sales():
 	anything still failing. Individual failures never abort the batch."""
 	from radius_desk.radius_desk.doctype.voucher_sale.voucher_sale import fulfill_voucher_sale
 
+	# Failed retries bump `modified` (persisted), so stuck sales rotate out of
+	# the staleness window instead of crowding the batch forever.
 	cutoff = add_to_date(now_datetime(), minutes=-NOTIFY_AFTER_MINUTES)
 	names = frappe.get_all(
 		"Voucher Sale",
@@ -35,6 +37,7 @@ def retry_fulfillment_failed_sales():
 			fulfill_voucher_sale(name)
 			frappe.db.commit()
 		except Exception:
+			frappe.log_error(frappe.get_traceback(), f"radius_desk fulfillment retry failed: {name}")
 			frappe.db.rollback()
 			still_failed.append(name)
 
@@ -47,23 +50,22 @@ def _notify_operator(failed_sales: list[str]) -> None:
 	key = cache.make_key("rd-fulfillment-notify")
 	if cache.get(key):
 		return
-	cache.set(key, 1, ex=NOTIFY_THROTTLE_SECONDS)
 
-	recipients = []
-	for user in frappe.get_all(
-		"Has Role",
-		filters={"role": "System Manager", "parenttype": "User"},
-		pluck="parent",
-	):
-		if frappe.db.get_value("User", user, "enabled"):
-			recipients.append(user)
+	from frappe.email import get_system_managers
+
+	recipients = get_system_managers()
 	if not recipients:
 		return
+
+	total = frappe.db.count("Voucher Sale", {"status": "Fulfillment Failed"})
+
+	cache.set(key, 1, ex=NOTIFY_THROTTLE_SECONDS)
 
 	frappe.sendmail(
 		recipients=recipients,
 		subject=_("RadiusDesk: voucher fulfillment still failing"),
 		message="<p>These paid voucher sales could not be fulfilled after retry:</p>"
 		+ "".join(f"<p>{frappe.utils.escape_html(n)}</p>" for n in failed_sales)
+		+ "<p>{0}</p>".format(_("{0} voucher sale(s) are currently waiting for fulfillment.").format(total))
 		+ "<p>Please check Radius Desk Settings / the RadiusDesk server.</p>",
 	)

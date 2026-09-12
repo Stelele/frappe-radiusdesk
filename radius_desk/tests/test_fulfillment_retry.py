@@ -164,3 +164,67 @@ class TestFulfillmentRetry(AccountsTestMixin, IntegrationTestCase):
 		self.assertEqual(mock_send.call_count, 1)
 		sale = frappe.get_doc("Voucher Sale", name)
 		self.assertEqual(sale.status, "Fulfillment Failed")
+
+	def test_fresh_failure_is_not_picked_up(self):
+		name = self._make_failed_sale(minutes_old=0)
+		# `_make_failed_sale` backdates to 2000-01-01 for the oldest-first batch
+		# tests; this test needs a genuinely fresh row, so pin `modified` to now.
+		frappe.db.set_value("Voucher Sale", name, "modified", now_datetime(), update_modified=False)
+		frappe.db.commit()
+		with (
+			patch(
+				"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._get_connector"
+			) as mock_conn,
+			patch.object(fr_retry, "NOTIFY_AFTER_MINUTES", 100000),
+		):
+			fr_retry.retry_fulfillment_failed_sales()
+		self.assertEqual(mock_conn.return_value.create_voucher.call_count, 0)
+		sale = frappe.get_doc("Voucher Sale", name)
+		self.assertEqual(sale.status, "Fulfillment Failed")
+		self.assertEqual(sale.radius_error, "boom")
+
+	def test_retry_after_invoice_failure_does_not_duplicate_voucher(self):
+		name = self._make_failed_sale()
+		calls = []
+
+		def voucher_side_effect(**kwargs):
+			calls.append(1)
+			return {"id": 90, "name": "NODUP-1"}
+
+		with (
+			patch.object(fr_retry, "BATCH_LIMIT", 1),
+			patch(
+				"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._get_connector"
+			) as mock_conn,
+			patch(
+				"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._create_pos_invoice",
+				side_effect=Exception("invoice boom"),
+			),
+			patch("frappe.sendmail"),
+		):
+			mock_conn.return_value.create_voucher.side_effect = voucher_side_effect
+			fr_retry.retry_fulfillment_failed_sales()  # creates voucher, invoice fails
+		sale = frappe.get_doc("Voucher Sale", name)
+		self.assertEqual(sale.status, "Fulfillment Failed")
+		self.assertEqual(sale.voucher_code, "NODUP-1")  # milestone survived
+
+		# Make it stale again, older than the real backlog so oldest-first picks
+		# this row, and retry — it must resume, not re-create the voucher.
+		frappe.db.set_value(
+			"Voucher Sale", name, "modified", "2000-01-01 00:00:00", update_modified=False
+		)
+		with (
+			patch.object(fr_retry, "BATCH_LIMIT", 1),
+			patch(
+				"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._get_connector"
+			) as mock_conn2,
+			patch(
+				"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._create_pos_invoice",
+				side_effect=Exception("invoice boom again"),
+			),
+			patch("frappe.sendmail"),
+		):
+			mock_conn2.return_value.create_voucher.side_effect = voucher_side_effect
+			fr_retry.retry_fulfillment_failed_sales()
+		self.assertEqual(len(calls), 1)  # no duplicate voucher
+		self.assertEqual(frappe.get_doc("Voucher Sale", name).voucher_code, "NODUP-1")

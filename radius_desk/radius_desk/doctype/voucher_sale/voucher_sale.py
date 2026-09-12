@@ -673,7 +673,7 @@ def fulfill_voucher_sale(sale_name):
 			_("Voucher Sale {0} is not ready for fulfillment (status: {1}).").format(sale.name, sale.status)
 		)
 
-	resume = sale.status == "Voucher Created" and sale.voucher_code
+	resume = bool(sale.voucher_code)
 	if not resume:
 		try:
 			settings = _get_settings()
@@ -694,12 +694,20 @@ def fulfill_voucher_sale(sale_name):
 		except RadiusDeskException as exc:
 			sale.db_set("status", "Fulfillment Failed", update_modified=True)
 			sale.db_set("radius_error", str(exc), update_modified=True)
+			# Persist the terminal state before propagating: callers that roll back
+			# on exception (e.g. the retry scheduler) must not lose the voucher
+			# milestone — otherwise a re-run would re-create the voucher.
+			frappe.db.commit()
 			frappe.throw(_("Could not create the voucher on RadiusDesk: {0}").format(exc))
 		except Exception:
 			# Any failure here means money was taken but no voucher was produced —
 			# leave the sale retryable rather than stranded.
 			sale.db_set("status", "Fulfillment Failed", update_modified=True)
 			sale.db_set("radius_error", frappe.get_traceback(), update_modified=True)
+			# Persist the terminal state before propagating: callers that roll back
+			# on exception (e.g. the retry scheduler) must not lose the voucher
+			# milestone — otherwise a re-run would re-create the voucher.
+			frappe.db.commit()
 			raise
 
 		sale.db_set("voucher_code", result["name"], update_modified=True)
@@ -723,6 +731,10 @@ def fulfill_voucher_sale(sale_name):
 			# instead of a stranded "Voucher Created".
 			sale.db_set("status", "Fulfillment Failed", update_modified=True)
 			sale.db_set("radius_error", frappe.get_traceback(), update_modified=True)
+			# Persist the terminal state before propagating: callers that roll back
+			# on exception (e.g. the retry scheduler) must not lose the voucher
+			# milestone — otherwise a re-run would re-create the voucher.
+			frappe.db.commit()
 			raise
 		sale.db_set("invoice_doctype", invoice_type, update_modified=True)
 		sale.db_set("invoice_name", invoice_name, update_modified=True)
