@@ -176,6 +176,7 @@ class TestFulfillmentRetry(AccountsTestMixin, IntegrationTestCase):
 				"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._get_connector"
 			) as mock_conn,
 			patch.object(fr_retry, "NOTIFY_AFTER_MINUTES", 100000),
+			patch.object(fr_retry, "BATCH_LIMIT", 0),
 		):
 			fr_retry.retry_fulfillment_failed_sales()
 		self.assertEqual(mock_conn.return_value.create_voucher.call_count, 0)

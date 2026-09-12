@@ -66,6 +66,6 @@ def _notify_operator(failed_sales: list[str]) -> None:
 		subject=_("RadiusDesk: voucher fulfillment still failing"),
 		message="<p>These paid voucher sales could not be fulfilled after retry:</p>"
 		+ "".join(f"<p>{frappe.utils.escape_html(n)}</p>" for n in failed_sales)
-		+ "<p>{0}</p>".format(_("{0} voucher sale(s) are currently waiting for fulfillment.").format(total))
+		+ "<p>{0} voucher sale(s) are currently waiting for fulfillment.</p>".format(total)
 		+ "<p>Please check Radius Desk Settings / the RadiusDesk server.</p>",
 	)
