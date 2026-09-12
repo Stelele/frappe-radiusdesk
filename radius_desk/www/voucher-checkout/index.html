@@ -1,5 +1,14 @@
-{% extends "templates/web.html" %} {% block title %}{{ _("Buy WiFi Voucher") }}{% endblock %} {%
+{% if embed %}{% extends "radius_desk/www/voucher-checkout/embed_base.html" %}{% else %}{% extends "templates/web.html" %}{% endif %} {% block title %}{{ _("Buy WiFi Voucher") }}{% endblock %} {%
 block page_content %}
+	{% if embed %}
+	<script>
+		window.RD_EMBED = {{ embed_json | safe }};
+	</script>
+	<style>
+		.rd-embed h3 { font-size: 1.1rem; }
+		.rd-embed .card { font-size: 0.9rem; }
+	</style>
+	{% endif %}
 <div class="voucher-checkout" style="max-width: 640px; margin: 0 auto">
 	<h3 class="mb-4">{{ _("Buy WiFi Voucher") }}</h3>
 
@@ -55,6 +64,7 @@ block page_content %}
 				<option value="InnBucks">InnBucks</option>
 				<option value="Omari">Omari</option>
 			</select>
+			<div id="method-hint" class="small text-muted mt-1"></div>
 		</div>
 		<button class="btn btn-primary btn-block" id="pay-button">{{ _("Pay Now") }}</button>
 	</div>
