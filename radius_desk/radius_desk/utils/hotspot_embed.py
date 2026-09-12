@@ -10,9 +10,9 @@ from frappe import _
 
 # After IP validation, restrict the whole URL to a conservative charset so the
 # validated value can be embedded in JSON/HTML without injection risk. RouterOS
-# login URLs only ever contain host, path, an urlencoded dst parameter and
-# [ ] around IPv6 literals.
-_SAFE_URL_RE = re.compile(r"^[A-Za-z0-9:/.?=&%_\[\]-]+$")
+# login URLs only ever contain host, path, an urlencoded dst parameter (which
+# may use + for spaces), and [ ] around IPv6 literals.
+_SAFE_URL_RE = re.compile(r"^[A-Za-z0-9:/.?=&%_+\[\]-]+$")
 
 
 def validate_hotspot_url(url: str | None) -> str | None:
@@ -48,13 +48,18 @@ def validate_hotspot_url(url: str | None) -> str | None:
 
 def ensure_rate_limit(identifier: str, limit: int, window_seconds: int) -> None:
 	"""Raise TooManyRequestsError once `identifier` is used more than `limit`
-	times in the current fixed window. Cache-backed and best-effort."""
+	times in the current fixed window. Cache-backed, best-effort; fails open if
+	the cache is unavailable."""
 	cache = frappe.cache()
 	window_number = int(time.time() // window_seconds)
-	key = f"rd-rate-limit:{identifier}:{window_number}"
-	count = cache.incr(key)
-	if count == 1:
-		cache.expire(key, window_seconds)
+	key = cache.make_key(f"rd-rate-limit:{identifier}:{window_number}")
+	try:
+		count = cache.incr(key)
+		if count == 1:
+			cache.expire(key, window_seconds)
+	except Exception:
+		frappe.log_error(frappe.get_traceback(), "radius_desk rate limit cache unavailable")
+		return  # fail open: an abuse backstop must not block paying customers
 	if count > limit:
 		raise frappe.exceptions.TooManyRequestsError(
 			_("Too many requests. Please wait a few minutes and try again.")
