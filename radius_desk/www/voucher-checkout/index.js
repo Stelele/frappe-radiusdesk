@@ -17,6 +17,46 @@ frappe.ready(() => {
 	const $payButton = $("#pay-button");
 	const $voucherCode = $("#voucher-code");
 
+	const METHOD_HINTS = {
+		EcoCash: "Approve on your phone with your EcoCash PIN — works without mobile data.",
+		InnBucks: "The InnBucks app needs mobile data to approve — keep mobile data ON.",
+		Omari: "The Omari app needs mobile data to approve — keep mobile data ON.",
+	};
+	const $methodHint = $("#method-hint");
+
+	function show_method_hint() {
+		$methodHint.text(METHOD_HINTS[$method.val()] || "");
+	}
+	show_method_hint();
+	$method.on("change", show_method_hint);
+
+	// Deliver the voucher code to the hotspot login page (embed mode only).
+	// - Full-page fallback mode (RD_EMBED.linklogin known): top-level redirect
+	//   with the code in the URL fragment. Navigation is never mixed-content
+	//   blocked (a cross-scheme form POST would be); the fragment is not sent
+	//   to the router or logged.
+	// - Iframe mode: postMessage to the parent. targetOrigin is the parent's
+	//   origin from document.referrer — NEVER '*' (an evil embedding page
+	//   could harvest the code). If the referrer is unavailable, do nothing:
+	//   the code stays on screen for manual entry.
+	function deliver_code(code) {
+		if (!window.RD_EMBED) return;
+		if (window.RD_EMBED.linklogin) {
+			set_status(__("Connecting you to the internet..."));
+			setTimeout(function () {
+				window.location.href = window.RD_EMBED.linklogin + "#rd-voucher=" + encodeURIComponent(code);
+			}, 1500);
+			return;
+		}
+		if (window.parent === window) return;
+		try {
+			var target = new URL(document.referrer).origin;
+		} catch (e) {
+			return;
+		}
+		window.parent.postMessage({ source: "rd-voucher", code: code }, target);
+	}
+
 	$planList.on("click", ".plan-select", function () {
 		const $card = $(this).closest(".card");
 		selected_plan = $card.attr("data-plan");
@@ -78,7 +118,7 @@ frappe.ready(() => {
 					clearInterval(poll_interval);
 					set_status(
 						__(
-							"Payment is still being processed. If approved on your phone, the voucher will be sent to you shortly.",
+							"Payment is still being processed. If approved on your phone, please ask the cafe staff to check your purchase.",
 						),
 						true,
 					);
@@ -90,6 +130,7 @@ frappe.ready(() => {
 					$statusPanel.hide();
 					$voucherCode.text(st.voucher_code);
 					$resultPanel.show();
+					deliver_code(st.voucher_code);
 				} else if (st.status === "Payment Failed") {
 					clearInterval(poll_interval);
 					set_status(__("Payment was declined. Please try again."), true);
