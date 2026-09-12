@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 
 import frappe
@@ -8,6 +9,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt
 from pesepay.templates.pages.pesepay_checkout import make_seamless_payment
 
+from radius_desk.radius_desk.utils.hotspot_embed import ensure_rate_limit
 from radius_desk.radius_desk.utils.pos_infra import get_pesepay_mode_of_payment
 from radius_desk.radius_desk.utils.radiusdesk import RadiusDeskException
 
@@ -84,6 +86,29 @@ def _get_settings() -> frappe._dict:
 	if missing:
 		frappe.throw(_("Radius Desk Settings are incomplete: {0}").format(", ".join(missing)))
 	return settings
+
+
+def _client_ip() -> str:
+	"""Best-effort client IP. Behind Frappe Cloud/Cloudflare the X-Forwarded-For
+	first entry is the connecting NAT (the cafe router); hotspot clients share
+	it, so the per-IP limit must stay generous — it only stops bulk abuse."""
+	request = getattr(frappe.local, "request", None)
+	if request is None:
+		return "tests"
+	forwarded = (request.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+	return forwarded or getattr(request, "remote_addr", "") or "unknown"
+
+
+def _should_poll_pesepay(checkout_token: str) -> bool:
+	"""Outbound PesaPay poll backoff: at most one real poll per 3s per token
+	(the web page polls every 3s, so every other poll does the real work).
+	Raw get/set are used so the key is prefixed exactly once by make_key."""
+	cache = frappe.cache()
+	key = cache.make_key(f"rd-pesepay-poll:{checkout_token}")
+	if cache.get(key):
+		return False
+	cache.set(key, 1, ex=3)
+	return True
 
 
 def _get_connector(settings):
@@ -373,6 +398,8 @@ def initiate_voucher_payment(sale_name, phone_number, payment_method, check_perm
 	msg = frappe.response.get("message") or {}
 	if msg.get("success") is False:
 		frappe.throw(msg.get("error") or _("Payment could not be initiated."))
+	if msg.get("redirect_url"):
+		frappe.throw(_("This payment method requires a web redirect, which is not supported here."))
 
 	sale.db_set("phone_number", phone_number, update_modified=True)
 	sale.db_set("payment_method", payment_method, update_modified=True)
@@ -499,6 +526,11 @@ def get_voucher_codes_for_invoice(doctype, invoice_name):
 def create_web_checkout(plan, phone_number, payment_method):
 	"""Create a Web Voucher Sale and initiate payment. Returns a checkout token
 	for the public page to poll with."""
+	# Abuse controls: the guest API pushes real USSD/app payment prompts to a
+	# phone number — cap per phone (anti-bomb) and per IP (bulk abuse; note
+	# hotspot clients share the cafe NAT so this stays generous).
+	ensure_rate_limit(f"web-checkout:phone:{re.sub(r'[^0-9]', '', phone_number or '')}", 3, 3600)
+	ensure_rate_limit(f"web-checkout:ip:{_client_ip()}", 20, 3600)
 	plan_doc = frappe.get_doc("Voucher Plan", plan)
 	if not plan_doc.enabled:
 		frappe.throw(_("Voucher plan is not available."))
@@ -583,7 +615,7 @@ def confirm_voucher_web_checkout(checkout_token):
 	if sale.status not in ("Payment Pending", "Payment Confirmed"):
 		return {"status": sale.status}
 
-	if sale.poll_url:
+	if sale.poll_url and _should_poll_pesepay(checkout_token):
 		try:
 			from pesepay.pesepay.doctype.pesepay_settings.pesepay_settings import poll_payment_status
 

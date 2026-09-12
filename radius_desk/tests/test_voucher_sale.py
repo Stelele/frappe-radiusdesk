@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import uuid
 from unittest.mock import patch
 
 import frappe
@@ -8,9 +9,9 @@ from erpnext.stock.doctype.item.test_item import create_item
 from frappe.tests import IntegrationTestCase
 
 from radius_desk.radius_desk.doctype.voucher_sale import voucher_sale as vs
-from radius_desk.tests.settings_guard import guard_shared_configuration
 from radius_desk.radius_desk.utils.pos_infra import ensure_today_open_pos_entry
 from radius_desk.radius_desk.utils.radiusdesk import RadiusDeskException
+from radius_desk.tests.settings_guard import guard_shared_configuration
 
 
 class TestVoucherSale(AccountsTestMixin, IntegrationTestCase):
@@ -25,6 +26,7 @@ class TestVoucherSale(AccountsTestMixin, IntegrationTestCase):
 		self._setup_pesepay_gateway()
 		self._setup_settings()
 		self.plan = self._make_plan()
+		frappe.cache().delete_keys("rd-rate-limit:*")
 
 	def _setup_pesepay_gateway(self):
 		gateway_name = "Test Gateway"
@@ -587,3 +589,64 @@ class TestVoucherSale(AccountsTestMixin, IntegrationTestCase):
 			pluck="name",
 		)
 		self.assertEqual(open_entries, [next_name])
+
+	def test_create_web_checkout_rejects_pesepay_redirect_url(self):
+		"""PesaPay seamless must never return a redirect for embed buyers —
+		pre-auth hotspot clients can't reach PesaPay (outside the walled garden)."""
+		with patch(
+			"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale.make_seamless_payment"
+		) as mock_ms, patch(
+			"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._validate_pesepay_combo"
+		):
+			mock_ms.return_value = None
+			frappe.response["message"] = {
+				"success": True,
+				"merchant_reference": "PES-R",
+				"poll_url": "",
+				"reference_number": "REF-R",
+				"redirect_url": "https://pay.pesepay.com/x",
+			}
+			with self.assertRaises(frappe.ValidationError):
+				vs.create_web_checkout(self.plan.name, "0778889900", "EcoCash")
+
+		sale = frappe.get_doc("Voucher Sale", {"phone_number": "0778889900"})
+		self.assertEqual(sale.status, "Payment Failed")
+
+	def test_create_web_checkout_rate_limits_per_phone(self):
+		suffix = uuid.uuid4().hex[:6]
+		with patch(
+			"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale.make_seamless_payment"
+		) as mock_ms, patch(
+			"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._validate_pesepay_combo"
+		), patch(
+			"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._client_ip",
+			return_value="10.99.99.99",
+		):
+			mock_ms.return_value = None
+			frappe.response["message"] = {
+				"success": True,
+				"merchant_reference": "PES-RL",
+				"poll_url": "https://poll.example.com",
+				"reference_number": "REF-RL",
+			}
+			phone = f"0771{suffix}"
+			for _ in range(3):
+				vs.create_web_checkout(self.plan.name, phone, "EcoCash")
+			with self.assertRaises(frappe.exceptions.TooManyRequestsError):
+				vs.create_web_checkout(self.plan.name, phone, "EcoCash")
+
+	def test_confirm_poll_backs_off_outbound_pesepay_calls(self):
+		"""confirm_voucher_web_checkout must not hammer PesaPay outbound —
+		at most one real poll per 3s per checkout_token."""
+		sale = self._make_sale()
+		sale.db_set("status", "Payment Pending")
+		sale.db_set("poll_url", "https://poll.example.com")
+		token = sale.checkout_token
+		frappe.cache().delete(frappe.cache().make_key(f"rd-pesepay-poll:{token}"))
+		with patch(
+			"pesepay.pesepay.doctype.pesepay_settings.pesepay_settings.poll_payment_status",
+			return_value={},
+		) as mock_poll:
+			vs.confirm_voucher_web_checkout(token)
+			vs.confirm_voucher_web_checkout(token)
+		self.assertEqual(mock_poll.call_count, 1)
