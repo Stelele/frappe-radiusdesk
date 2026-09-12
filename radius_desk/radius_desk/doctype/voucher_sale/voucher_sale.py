@@ -89,9 +89,12 @@ def _get_settings() -> frappe._dict:
 
 
 def _client_ip() -> str:
-	"""Best-effort client IP. Behind Frappe Cloud/Cloudflare the X-Forwarded-For
-	first entry is the connecting NAT (the cafe router); hotspot clients share
-	it, so the per-IP limit must stay generous — it only stops bulk abuse."""
+	"""Best-effort client IP for the coarse per-IP abuse limit. Takes the first
+	X-Forwarded-For entry, which is only trustworthy when the immediate peer is
+	an overwriting proxy (true on Frappe Cloud; a client CAN spoof it on a bare
+	app server — acceptable because the per-phone limit is the real control).
+	All hotspot clients share the cafe NAT's public IP, so this stays generous;
+	it only stops bulk abuse."""
 	request = getattr(frappe.local, "request", None)
 	if request is None:
 		return "tests"
@@ -102,13 +105,13 @@ def _client_ip() -> str:
 def _should_poll_pesepay(checkout_token: str) -> bool:
 	"""Outbound PesaPay poll backoff: at most one real poll per 3s per token
 	(the web page polls every 3s, so every other poll does the real work).
-	Raw get/set are used so the key is prefixed exactly once by make_key."""
+	Atomic SET NX avoids the get-then-set race between concurrent polls.
+	Raw set is used so the key is prefixed exactly once by make_key."""
 	cache = frappe.cache()
 	key = cache.make_key(f"rd-pesepay-poll:{checkout_token}")
-	if cache.get(key):
-		return False
-	cache.set(key, 1, ex=3)
-	return True
+	if cache.set(key, 1, ex=3, nx=True):
+		return True
+	return False
 
 
 def _get_connector(settings):
@@ -399,7 +402,7 @@ def initiate_voucher_payment(sale_name, phone_number, payment_method, check_perm
 	if msg.get("success") is False:
 		frappe.throw(msg.get("error") or _("Payment could not be initiated."))
 	if msg.get("redirect_url"):
-		frappe.throw(_("This payment method requires a web redirect, which is not supported here."))
+		frappe.throw(_("This payment method isn't available here. Please ask a staff member for help."))
 
 	sale.db_set("phone_number", phone_number, update_modified=True)
 	sale.db_set("payment_method", payment_method, update_modified=True)
@@ -530,7 +533,7 @@ def create_web_checkout(plan, phone_number, payment_method):
 	# phone number — cap per phone (anti-bomb) and per IP (bulk abuse; note
 	# hotspot clients share the cafe NAT so this stays generous).
 	ensure_rate_limit(f"web-checkout:phone:{re.sub(r'[^0-9]', '', phone_number or '')}", 3, 3600)
-	ensure_rate_limit(f"web-checkout:ip:{_client_ip()}", 20, 3600)
+	ensure_rate_limit(f"web-checkout:ip:{_client_ip()}", 60, 3600)
 	plan_doc = frappe.get_doc("Voucher Plan", plan)
 	if not plan_doc.enabled:
 		frappe.throw(_("Voucher plan is not available."))

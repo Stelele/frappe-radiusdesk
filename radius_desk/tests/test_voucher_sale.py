@@ -650,3 +650,6 @@ class TestVoucherSale(AccountsTestMixin, IntegrationTestCase):
 			vs.confirm_voucher_web_checkout(token)
 			vs.confirm_voucher_web_checkout(token)
 		self.assertEqual(mock_poll.call_count, 1)
+		# The backoff marker must expire (~3s), else sales would never confirm
+		key = frappe.cache().make_key(f"rd-pesepay-poll:{token}")
+		self.assertGreater(frappe.cache().ttl(key), 0)
