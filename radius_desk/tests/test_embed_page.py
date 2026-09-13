@@ -98,7 +98,10 @@ class TestEmbedPageRendering(IntegrationTestCase):
 
 	def test_normal_page_still_has_chrome(self):
 		html = self._get("/voucher-checkout/")
-		self.assertNotIn("window.RD_EMBED", html)
+		# The colocated index.js *reads* window.RD_EMBED, so the bare string
+		# appears in the inline script — only embed mode ever assigns it.
+		self.assertNotIn("window.RD_EMBED = ", html)
+		self.assertNotIn('class="rd-embed"', html)
 
 	def test_injection_in_link_params_cannot_break_out(self):
 		html = self._get(
