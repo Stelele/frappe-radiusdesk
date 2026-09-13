@@ -1,8 +1,20 @@
 # Hotspot-Embedded Voucher Purchase — Design
 
-Date: 2026-09-12 (rev 2 — post adversarial review)
+Date: 2026-09-12 (rev 3 — full-page primary: Frappe Cloud edge blocks framing)
 App: `radius_desk` (Frappe v16) + `hotspot-cafe-config` (MikroTik)
 Author: Gift Mugweni
+
+> **Rev 3 amendment (post-verification):** the Frappe Cloud edge sends
+> `X-Frame-Options: SAMEORIGIN` site-wide (`server: Frappe Cloud` header,
+> present on every route including redirects). Frappe core never sets it and
+> no site config controls it, so the iframe embed is blocked at the proxy
+> layer. Per operator decision: **full-page flow is primary** — the Buy tab
+> is a themed CTA link to the portal (carrying `linklogin`/`linkorig`),
+> the fragment auto-login receiver ships as the delivery mechanism, and the
+> postMessage listener stays in `login.html` dormant (framing could be
+> restored via a Frappe Cloud support ticket without touching receiver
+> logic). `?embed=1` remains valuable: it renders the bare template in the
+> full-page flow too (no navbar/footer chrome).
 
 ## Summary
 
@@ -45,7 +57,7 @@ Non-goals:
 | 1 | Frappe site live at `https://njeremoto.jh.erpnext.com/`, app installed, Settings + Plans configured | rollout prerequisite |
 | 2 | PesaPay initiation is server-side (seamless); approval happens on the customer's phone | verified in code; **fail-fast added** if PesaPay ever returns a `redirect_url` |
 | 3 | Router `login-by=http-chap,http-pap,cookie` | verified (`03-hotspot-radius.rsc:47`) — PAP auto-login permitted |
-| 4 | Frappe core sets no frame-ancestors for www pages; Frappe Cloud edge neither | core verified (`web_form.py:22` is the only hit); edge = verify live at rollout |
+| 4 | Frappe core sets no frame-ancestors for www pages; Frappe Cloud edge neither | **DISPROVEN at the edge**: FC proxy adds `X-Frame-Options: SAMEORIGIN` site-wide → iframe dropped, full-page primary (rev 3). postMessage code kept dormant |
 | 5 | Hotspot DNS resolves the portal domain pre-auth | verified (`dns-server` = router); DoH divergence handled in walled-garden script |
 | 6 | EcoCash approval rides USSD (works without mobile data); InnBucks/Omari are app-based and need internet | UX hints + QA cases added |
 | 7 | Frappe Cloud site does not auto-hibernate | verify plan at rollout + keep-alive cron on the droplet |
