@@ -36,8 +36,11 @@ frappe.ready(() => {
 		// Framed (iframe embed): deliver via postMessage. targetOrigin is the
 		// parent's origin from document.referrer — NEVER '*' (an evil embedding
 		// page could harvest the code). If the referrer is unavailable, do
-		// nothing: the code stays on screen for manual entry.
+		// nothing: the code stays on screen for manual entry. linklogin must
+		// also be present (the embedding hotspot passes its router URL), so an
+		// unrelated embedder that never supplied one gets no code delivered.
 		if (window.parent !== window) {
+			if (!window.RD_EMBED.linklogin) return;
 			let target;
 			try {
 				target = new URL(document.referrer).origin;
