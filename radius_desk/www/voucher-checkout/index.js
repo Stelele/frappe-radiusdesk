@@ -33,17 +33,17 @@ frappe.ready(() => {
 	// Deliver the voucher code to the hotspot login page (embed mode only).
 	function deliver_code(code) {
 		if (!window.RD_EMBED) return;
-		// Framed (iframe embed): deliver via postMessage. targetOrigin is the
-		// parent's origin from document.referrer — NEVER '*' (an evil embedding
-		// page could harvest the code). If the referrer is unavailable, do
-		// nothing: the code stays on screen for manual entry. linklogin must
-		// also be present (the embedding hotspot passes its router URL), so an
-		// unrelated embedder that never supplied one gets no code delivered.
+		// Framed (iframe embed): deliver via postMessage, but ONLY to the
+		// router's origin — derived from the server-validated linklogin URL,
+		// never from document.referrer (any site can embed this page; only
+		// the hotspot router page may receive the code). If the parent is not
+		// the router, the browser simply never delivers the message. The code
+		// always stays on screen for manual entry as the fallback.
 		if (window.parent !== window) {
 			if (!window.RD_EMBED.linklogin) return;
 			let target;
 			try {
-				target = new URL(document.referrer).origin;
+				target = new URL(window.RD_EMBED.linklogin).origin;
 			} catch (e) {
 				return;
 			}

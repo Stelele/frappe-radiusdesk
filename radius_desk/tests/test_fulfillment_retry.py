@@ -159,6 +159,16 @@ class TestFulfillmentRetry(AccountsTestMixin, IntegrationTestCase):
 		):
 			mock_conn.return_value.create_voucher.side_effect = Exception("still down")
 			fr_retry.retry_fulfillment_failed_sales()
+			# The failed retry bumps `modified`, which would exclude the sale
+			# from the second run on staleness alone — backdate it so the
+			# second run actually reaches the notification throttle.
+			frappe.db.set_value(
+				"Voucher Sale",
+				name,
+				"modified",
+				add_to_date(now_datetime(), minutes=-30),
+				update_modified=False,
+			)
 			# second run within the throttle window must not re-send
 			fr_retry.retry_fulfillment_failed_sales()
 		self.assertEqual(mock_send.call_count, 1)
@@ -183,6 +193,29 @@ class TestFulfillmentRetry(AccountsTestMixin, IntegrationTestCase):
 		sale = frappe.get_doc("Voucher Sale", name)
 		self.assertEqual(sale.status, "Fulfillment Failed")
 		self.assertEqual(sale.radius_error, "boom")
+
+	def test_ambiguous_remote_failure_adopts_existing_voucher(self):
+		"""If RadiusDesk created the voucher but the response was lost (timeout
+		mid-flight), the sale is Fulfillment Failed with no code — the retry
+		must adopt the voucher found via extra_value lookup, not create a
+		duplicate."""
+		name = self._make_failed_sale()
+		with (
+			patch.object(fr_retry, "BATCH_LIMIT", 1),
+			patch(
+				"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._get_connector"
+			) as mock_conn,
+		):
+			mock_conn.return_value.find_voucher_by_extra_value.return_value = {
+				"id": 55,
+				"name": "ADOPTED-1",
+			}
+			fr_retry.retry_fulfillment_failed_sales()
+		sale = frappe.get_doc("Voucher Sale", name)
+		self.assertEqual(sale.status, "Completed")
+		self.assertEqual(sale.voucher_code, "ADOPTED-1")
+		self.assertEqual(int(sale.voucher_id), 55)
+		mock_conn.return_value.create_voucher.assert_not_called()
 
 	def test_retry_after_invoice_failure_does_not_duplicate_voucher(self):
 		name = self._make_failed_sale()

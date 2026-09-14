@@ -15,12 +15,28 @@ from frappe import _
 _SAFE_URL_RE = re.compile(r"^[A-Za-z0-9:/.?=&%_+\[\]-]+$")
 
 
-def validate_hotspot_url(url: str | None) -> str | None:
+def validate_hotspot_url(url: str | None, expected_url: str | None = None) -> str | None:
 	"""Return the URL unchanged only if it points at a router: http(s) scheme
 	and a private / loopback / link-local IP-literal host, with no userinfo and
 	no unexpected characters. Anything else returns None so callers drop the
 	parameter (prevents open redirects + injection from ?linklogin / ?linkorig).
+
+	When ``expected_url`` is set (Radius Desk Settings > Hotspot Login URL in
+	production), the URL must match it EXACTLY — otherwise a crafted checkout
+	link could deliver the voucher fragment to any other host on the local
+	network. The private-IP heuristic alone is only a development fallback.
 	"""
+	cleaned = _sanitize_hotspot_url(url)
+	if cleaned is None:
+		return None
+	if expected_url:
+		expected = _sanitize_hotspot_url(expected_url)
+		if not expected or cleaned != expected:
+			return None
+	return cleaned
+
+
+def _sanitize_hotspot_url(url: str | None) -> str | None:
 	if not url:
 		return None
 	try:

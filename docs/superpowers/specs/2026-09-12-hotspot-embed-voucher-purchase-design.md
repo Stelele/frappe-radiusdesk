@@ -161,13 +161,14 @@ RADIUS rejects / page reloads / user lands back on login.html
 ```
 THREAT                              MITIGATION
 ───────────────────────────────     ─────────────────────────────────
-Evil site embeds portal,            No '*' postMessage; unknown referrer
-harvests voucher codes              origin → code only rendered (cross-
-                                    origin parent can't read DOM).
-                                    Evil parent passing a fake linklogin
-                                    → server-side validator blocks
-                                    non-private hosts, so the fragment
-                                    redirect can't be aimed at attacker
+Evil site embeds portal,            No '*' postMessage. The (dormant) iframe
+harvests voucher codes              path requires linklogin AND posts only
+                                    to the ROUTER's origin derived from the
+                                    server-validated linklogin URL — never
+                                    to document.referrer — so an embedding
+                                    parent that isn't the router never
+                                    receives the code (cross-origin DOM
+                                    reads are blocked anyway)
 Parent receives spoofed message     Parent validates e.origin ===
                                     PORTAL_ORIGIN + payload.source ===
                                     'rd-voucher' + code charset
@@ -177,8 +178,14 @@ Open redirect after login           linklogin AND linkorig validated:
                                       private IPv4/IPv6 literal, loopback,
                                       or link-local. Single-label
                                       hostnames REJECTED (http://evil/
-                                      is resolvable). Invalid → param
-                                      dropped, RouterOS default redirect
+                                      is resolvable). When Radius Desk
+                                      Settings > Hotspot Login URL is
+                                      configured (production), the URL
+                                      must match it EXACTLY — the
+                                      private-IP heuristic is the
+                                      development fallback only. Invalid →
+                                      param dropped, RouterOS default
+                                      redirect
 Voucher code in server logs         Fragment (#rd-voucher=) never sent
                                     to the router; POST body never GET
 Guest API abuse (USSD-push          Per-IP + per-phone rate limit on
@@ -284,6 +291,7 @@ mikrotik/04-walled-garden.rsc (NEW — phase-4 script)
 | Frappe Cloud cold start / hibernation | Verify plan at rollout; droplet cron keep-alive curls /voucher-checkout/ every 15 min |
 | PesaPay returns a redirect URL | Fail fast with clear error instead of a 5-minute silent poll |
 | Cloud/droplet down after payment | Scheduler retries Fulfillment Failed every 5 min + notifies operator; break-glass: pre-made voucher stock on RADIUSDesk |
+| RadiusDesk response lost mid-flight (ambiguous create) | Retry looks up vouchers by extra_value=sale.name first and adopts an existing one instead of creating a duplicate |
 
 ## Testing
 

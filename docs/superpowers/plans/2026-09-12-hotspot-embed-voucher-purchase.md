@@ -2,6 +2,17 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
+> **STATUS NOTE (2026-09-13):** This plan is the historical execution record.
+> During Task 6 the design changed: the Frappe Cloud edge sends
+> `X-Frame-Options: SAMEORIGIN` site-wide, so the **iframe embed was dropped —
+> the Buy tab is a full-page CTA link** and the `#rd-voucher=` fragment
+> redirect is the PRIMARY delivery mechanism. Task 6 below still shows the
+> original iframe tab; what actually shipped is in the hotspot-cafe-config
+> history. The authoritative design is the spec at
+> `docs/superpowers/specs/2026-09-12-hotspot-embed-voucher-purchase-design.md`
+> (rev 3). The dormant postMessage path now requires `linklogin` and posts
+> only to the router's origin.
+
 **Goal:** Embed the guest voucher portal into the MikroTik hotspot login page and auto-login the customer with the voucher they just bought (postMessage from iframe, URL-fragment redirect from full-page fallback), with rate limits, fulfilment retry, and walled-garden config.
 
 **Architecture:** One code-delivery mechanism, two transports: the portal page (`/voucher-checkout/`) gains an `?embed=1` mode (bare base template) that, on payment success, either postMessages the voucher code to the embedding parent (referrer-origin target only, never `'*'`) or redirects the top window to `{linklogin}#rd-voucher=CODE`. The hotspot `login.html` receives the code (message listener or hash reader), stashes it in `sessionStorage`, and PAP-submits its own form, with a rescue banner and auto-retry on reload. Guest APIs get rate limits + outbound-poll backoff; a scheduler retries Fulfillment Failed sales and emails System Managers.

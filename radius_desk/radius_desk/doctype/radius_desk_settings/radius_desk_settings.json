@@ -5,17 +5,19 @@
  "creation": "2026-08-18 22:44:09.308793",
  "doctype": "DocType",
  "engine": "InnoDB",
-  "field_order": [
-   "server_url",
-   "username",
-   "password",
-   "cloud_id",
-   "section_break_defaults",
-   "default_company",
-   "default_walkin_customer",
-   "pesepay_gateway",
-   "selling_price_list"
-  ],
+   "field_order": [
+    "server_url",
+    "username",
+    "password",
+    "cloud_id",
+    "section_break_defaults",
+    "default_company",
+    "default_walkin_customer",
+    "pesepay_gateway",
+    "selling_price_list",
+    "section_break_hotspot",
+    "hotspot_login_url"
+   ],
  "fields": [
   {
    "fieldname": "server_url",
@@ -71,14 +73,25 @@
    "options": "Payment Gateway",
    "reqd": 1
   },
-  {
-   "fieldname": "selling_price_list",
-   "fieldtype": "Link",
-   "label": "Selling Price List",
-   "options": "Price List",
-   "description": "Price list that holds Voucher Plan item prices. This is the single source of truth for voucher prices (overrides the plan's Price field)."
-  }
- ],
+   {
+    "fieldname": "selling_price_list",
+    "fieldtype": "Link",
+    "label": "Selling Price List",
+    "options": "Price List",
+    "description": "Price list that holds Voucher Plan item prices. This is the single source of truth for voucher prices (overrides the plan's Price field)."
+   },
+   {
+    "fieldname": "section_break_hotspot",
+    "fieldtype": "Section Break",
+    "label": "Hotspot"
+   },
+   {
+    "fieldname": "hotspot_login_url",
+    "fieldtype": "Data",
+    "label": "Hotspot Login URL",
+    "description": "Exact router login URL (e.g. http://192.168.88.1/login) passed to the guest checkout as linklogin. When set, the checkout only ever redirects to THIS URL — set it in production to stop voucher fragments reaching any other local host. When empty, any private/loopback/link-local IP login URL is accepted (development fallback)."
+   }
+  ],
  "grid_page_length": 50,
  "index_web_pages_for_search": 1,
  "issingle": 1,

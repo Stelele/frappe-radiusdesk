@@ -57,6 +57,26 @@ class TestValidateHotspotUrl(IntegrationTestCase):
 		self.assertIsNone(validate_hotspot_url(None))
 		self.assertIsNone(validate_hotspot_url("not a url"))
 
+	def test_exact_match_required_when_expected_url_configured(self):
+		"""Production pins Hotspot Login URL in settings — only that exact URL
+		may receive the voucher fragment (blocks crafted links to other LAN hosts)."""
+		self.assertEqual(
+			validate_hotspot_url("http://192.168.88.1/login", expected_url="http://192.168.88.1/login"),
+			"http://192.168.88.1/login",
+		)
+		# a different private IP does not pass once an expected URL is set
+		self.assertIsNone(
+			validate_hotspot_url("http://192.168.88.1/login", expected_url="http://10.5.50.1/login")
+		)
+		# path differences matter too
+		self.assertIsNone(
+			validate_hotspot_url("http://192.168.88.1/login", expected_url="http://192.168.88.1/status")
+		)
+		# a misconfigured (public) expected URL rejects everything — fail closed
+		self.assertIsNone(
+			validate_hotspot_url("http://192.168.88.1/login", expected_url="https://evil.com/login")
+		)
+
 
 class TestEnsureRateLimit(IntegrationTestCase):
 	def test_allows_up_to_limit_then_raises(self):

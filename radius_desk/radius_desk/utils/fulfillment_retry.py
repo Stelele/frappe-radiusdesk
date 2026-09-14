@@ -61,11 +61,17 @@ def _notify_operator(failed_sales: list[str]) -> None:
 
 	cache.set(key, 1, ex=NOTIFY_THROTTLE_SECONDS)
 
-	frappe.sendmail(
-		recipients=recipients,
-		subject=_("RadiusDesk: voucher fulfillment still failing"),
-		message="<p>These paid voucher sales could not be fulfilled after retry:</p>"
-		+ "".join(f"<p>{frappe.utils.escape_html(n)}</p>" for n in failed_sales)
-		+ "<p>{0} voucher sale(s) are currently waiting for fulfillment.</p>".format(total)
-		+ "<p>Please check Radius Desk Settings / the RadiusDesk server.</p>",
-	)
+	try:
+		frappe.sendmail(
+			recipients=recipients,
+			subject=_("RadiusDesk: voucher fulfillment still failing"),
+			message="<p>These paid voucher sales could not be fulfilled after retry:</p>"
+			+ "".join(f"<p>{frappe.utils.escape_html(n)}</p>" for n in failed_sales)
+			+ "<p>{0} voucher sale(s) are currently waiting for fulfillment.</p>".format(total)
+			+ "<p>Please check Radius Desk Settings / the RadiusDesk server.</p>",
+		)
+	except Exception:
+		# Never let a mail failure burn the throttle window — clear the marker
+		# so the next run can alert again once mail works.
+		cache.delete(key)
+		frappe.log_error(frappe.get_traceback(), "radius_desk fulfillment alert email failed")

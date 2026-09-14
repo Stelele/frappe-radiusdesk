@@ -685,12 +685,26 @@ def fulfill_voucher_sale(sale_name):
 					)
 				)
 			connector = _get_connector(settings)
-			result = connector.create_voucher(
-				realm_id=plan.radius_realm_id,
-				profile_id=plan.radius_profile_id,
-				never_expire=cint(plan.never_expire),
-				extra_value=sale.name,
-			)
+			# Ambiguity guard: RadiusDesk's add endpoint is not idempotent. If a
+			# previous attempt created the voucher but the response was lost
+			# (timeout mid-flight), the sale has no recorded code and a blind
+			# retry would create a duplicate. Vouchers carry extra_value=sale
+			# name for exactly this traceability — look before creating. The
+			# lookup is best-effort: if it fails, real errors still surface on
+			# the create call below.
+			try:
+				existing = connector.find_voucher_by_extra_value(sale.name)
+			except Exception:
+				existing = None
+			if isinstance(existing, dict) and existing.get("name"):
+				result = existing
+			else:
+				result = connector.create_voucher(
+					realm_id=plan.radius_realm_id,
+					profile_id=plan.radius_profile_id,
+					never_expire=cint(plan.never_expire),
+					extra_value=sale.name,
+				)
 		except RadiusDeskException as exc:
 			sale.db_set("status", "Fulfillment Failed", update_modified=True)
 			sale.db_set("radius_error", str(exc), update_modified=True)

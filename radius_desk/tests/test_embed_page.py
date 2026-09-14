@@ -65,6 +65,32 @@ class TestEmbedContext(IntegrationTestCase):
 		parsed = json.loads(context.embed_json)
 		self.assertIsNone(parsed["linklogin"])
 
+	def test_configured_hotspot_login_url_pins_exact_match(self):
+		"""With Hotspot Login URL set in settings, only that exact URL passes —
+		any other private-IP linklogin is dropped (LAN redirect guard)."""
+		frappe.db.set_single_value(
+			"Radius Desk Settings", "hotspot_login_url", "http://192.168.88.1/login"
+		)
+		self.addCleanup(frappe.db.set_single_value, "Radius Desk Settings", "hotspot_login_url", None)
+
+		frappe.local.form_dict = frappe._dict(
+			{
+				"embed": "1",
+				"linklogin": "http://10.66.66.6/login",  # other private IP — must be dropped
+			}
+		)
+		context = self._get_context()
+		self.assertIsNone(context.linklogin)
+
+		frappe.local.form_dict = frappe._dict(
+			{
+				"embed": "1",
+				"linklogin": "http://192.168.88.1/login",
+			}
+		)
+		context = self._get_context()
+		self.assertEqual(context.linklogin, "http://192.168.88.1/login")
+
 
 class TestEmbedPageRendering(IntegrationTestCase):
 	def _get(self, path):

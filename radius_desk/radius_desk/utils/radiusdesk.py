@@ -61,6 +61,38 @@ class RadiusDeskConnector:
 			raise RadiusDeskException(f"RadiusDesk login rejected: {data.get('message', '')}")
 		return data["data"]["token"]
 
+	def find_voucher_by_extra_value(self, extra_value: str) -> dict | None:
+		"""Return the first voucher {id, name} whose extra_value matches, or None.
+
+		Best-effort duplicate guard: vouchers are created with
+		extra_value=sale.name, so a lookup hit means a previous create
+		succeeded even if its response was lost (ambiguous timeout) and the
+		sale was left Fulfillment Failed with no recorded code."""
+		url = f"{self._base_url}/vouchers/index.json"
+		token = self._get_token()
+		try:
+			session = get_request_session()
+			resp = session.get(
+				url,
+				params={"extra_value": extra_value, "token": token},
+				cookies={"Token": token},
+				timeout=self._timeout,
+			)
+			resp.raise_for_status()
+			data = resp.json()
+		except Exception as exc:
+			raise RadiusDeskException(f"RadiusDesk voucher lookup failed: {exc}") from exc
+		if not data.get("success"):
+			return None
+		items = data.get("data") or []
+		# cake4 index responses wrap the rows: {"data": {"data": [...]}}
+		if isinstance(items, dict):
+			items = items.get("data") or []
+		for item in items:
+			if item.get("name") and item.get("id") is not None:
+				return {"id": item.get("id"), "name": item.get("name")}
+		return None
+
 	def create_voucher(self, realm_id, profile_id, never_expire: bool = True, extra_value: str = "") -> dict:
 		url = f"{self._base_url}/vouchers/add.json"
 		payload = {
