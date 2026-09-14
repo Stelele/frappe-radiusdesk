@@ -159,6 +159,10 @@ doc_events = {
 
 scheduler_events = {
 	"daily": ["radius_desk.radius_desk.utils.pos_infra.ensure_daily_pos_opening_entry"],
+	"cron": {
+		# every 5 minutes: retry paid-but-unfulfilled voucher sales
+		"0/5 * * * *": ["radius_desk.radius_desk.utils.fulfillment_retry.retry_fulfillment_failed_sales"],
+	},
 }
 
 after_migrate = ["radius_desk.installer.after_migrate"]

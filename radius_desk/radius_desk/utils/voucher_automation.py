@@ -46,7 +46,7 @@ def create_vouchers_for_invoice(doc, method=None):
 		docdoctype=doc.doctype,
 		docname=doc.name,
 		job_name=f"voucher-auto-{doc.doctype}-{doc.name}",
-		now=False,
+		now=frappe.flags.in_test,
 	)
 
 

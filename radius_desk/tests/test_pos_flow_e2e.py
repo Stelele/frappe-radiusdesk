@@ -27,8 +27,8 @@ from erpnext.stock.doctype.item.test_item import create_item
 from frappe.tests import IntegrationTestCase
 
 from radius_desk.radius_desk.doctype.voucher_sale import voucher_sale as vs
-from radius_desk.tests.settings_guard import guard_shared_configuration
 from radius_desk.radius_desk.utils.pos_infra import ensure_today_open_pos_entry
+from radius_desk.tests.settings_guard import guard_shared_configuration
 
 PESEPAY_MODE = "Pesepay-Test Gateway"
 

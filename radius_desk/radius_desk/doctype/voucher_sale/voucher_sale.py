@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 import uuid
 
 import frappe
@@ -8,6 +9,7 @@ from frappe.model.document import Document
 from frappe.utils import cint, flt
 from pesepay.templates.pages.pesepay_checkout import make_seamless_payment
 
+from radius_desk.radius_desk.utils.hotspot_embed import ensure_rate_limit
 from radius_desk.radius_desk.utils.pos_infra import get_pesepay_mode_of_payment
 from radius_desk.radius_desk.utils.radiusdesk import RadiusDeskException
 
@@ -84,6 +86,32 @@ def _get_settings() -> frappe._dict:
 	if missing:
 		frappe.throw(_("Radius Desk Settings are incomplete: {0}").format(", ".join(missing)))
 	return settings
+
+
+def _client_ip() -> str:
+	"""Best-effort client IP for the coarse per-IP abuse limit. Takes the first
+	X-Forwarded-For entry, which is only trustworthy when the immediate peer is
+	an overwriting proxy (true on Frappe Cloud; a client CAN spoof it on a bare
+	app server — acceptable because the per-phone limit is the real control).
+	All hotspot clients share the cafe NAT's public IP, so this stays generous;
+	it only stops bulk abuse."""
+	request = getattr(frappe.local, "request", None)
+	if request is None:
+		return "tests"
+	forwarded = (request.headers.get("X-Forwarded-For") or "").split(",")[0].strip()
+	return forwarded or getattr(request, "remote_addr", "") or "unknown"
+
+
+def _should_poll_pesepay(checkout_token: str) -> bool:
+	"""Outbound PesaPay poll backoff: at most one real poll per 3s per token
+	(the web page polls every 3s, so every other poll does the real work).
+	Atomic SET NX avoids the get-then-set race between concurrent polls.
+	Raw set is used so the key is prefixed exactly once by make_key."""
+	cache = frappe.cache()
+	key = cache.make_key(f"rd-pesepay-poll:{checkout_token}")
+	if cache.set(key, 1, ex=3, nx=True):
+		return True
+	return False
 
 
 def _get_connector(settings):
@@ -373,6 +401,8 @@ def initiate_voucher_payment(sale_name, phone_number, payment_method, check_perm
 	msg = frappe.response.get("message") or {}
 	if msg.get("success") is False:
 		frappe.throw(msg.get("error") or _("Payment could not be initiated."))
+	if msg.get("redirect_url"):
+		frappe.throw(_("This payment method isn't available here. Please ask a staff member for help."))
 
 	sale.db_set("phone_number", phone_number, update_modified=True)
 	sale.db_set("payment_method", payment_method, update_modified=True)
@@ -499,6 +529,11 @@ def get_voucher_codes_for_invoice(doctype, invoice_name):
 def create_web_checkout(plan, phone_number, payment_method):
 	"""Create a Web Voucher Sale and initiate payment. Returns a checkout token
 	for the public page to poll with."""
+	# Abuse controls: the guest API pushes real USSD/app payment prompts to a
+	# phone number — cap per phone (anti-bomb) and per IP (bulk abuse; note
+	# hotspot clients share the cafe NAT so this stays generous).
+	ensure_rate_limit(f"web-checkout:phone:{re.sub(r'[^0-9]', '', phone_number or '')}", 3, 3600)
+	ensure_rate_limit(f"web-checkout:ip:{_client_ip()}", 60, 3600)
 	plan_doc = frappe.get_doc("Voucher Plan", plan)
 	if not plan_doc.enabled:
 		frappe.throw(_("Voucher plan is not available."))
@@ -583,7 +618,7 @@ def confirm_voucher_web_checkout(checkout_token):
 	if sale.status not in ("Payment Pending", "Payment Confirmed"):
 		return {"status": sale.status}
 
-	if sale.poll_url:
+	if sale.poll_url and _should_poll_pesepay(checkout_token):
 		try:
 			from pesepay.pesepay.doctype.pesepay_settings.pesepay_settings import poll_payment_status
 
@@ -638,7 +673,7 @@ def fulfill_voucher_sale(sale_name):
 			_("Voucher Sale {0} is not ready for fulfillment (status: {1}).").format(sale.name, sale.status)
 		)
 
-	resume = sale.status == "Voucher Created" and sale.voucher_code
+	resume = bool(sale.voucher_code)
 	if not resume:
 		try:
 			settings = _get_settings()
@@ -650,21 +685,43 @@ def fulfill_voucher_sale(sale_name):
 					)
 				)
 			connector = _get_connector(settings)
-			result = connector.create_voucher(
-				realm_id=plan.radius_realm_id,
-				profile_id=plan.radius_profile_id,
-				never_expire=cint(plan.never_expire),
-				extra_value=sale.name,
-			)
+			# Ambiguity guard: RadiusDesk's add endpoint is not idempotent. If a
+			# previous attempt created the voucher but the response was lost
+			# (timeout mid-flight), the sale has no recorded code and a blind
+			# retry would create a duplicate. Vouchers carry extra_value=sale
+			# name for exactly this traceability — look before creating. The
+			# lookup is best-effort: if it fails, real errors still surface on
+			# the create call below.
+			try:
+				existing = connector.find_voucher_by_extra_value(sale.name)
+			except Exception:
+				existing = None
+			if isinstance(existing, dict) and existing.get("name"):
+				result = existing
+			else:
+				result = connector.create_voucher(
+					realm_id=plan.radius_realm_id,
+					profile_id=plan.radius_profile_id,
+					never_expire=cint(plan.never_expire),
+					extra_value=sale.name,
+				)
 		except RadiusDeskException as exc:
 			sale.db_set("status", "Fulfillment Failed", update_modified=True)
 			sale.db_set("radius_error", str(exc), update_modified=True)
+			# Persist the terminal state before propagating: callers that roll back
+			# on exception (e.g. the retry scheduler) must not lose the voucher
+			# milestone — otherwise a re-run would re-create the voucher.
+			frappe.db.commit()
 			frappe.throw(_("Could not create the voucher on RadiusDesk: {0}").format(exc))
 		except Exception:
 			# Any failure here means money was taken but no voucher was produced —
 			# leave the sale retryable rather than stranded.
 			sale.db_set("status", "Fulfillment Failed", update_modified=True)
 			sale.db_set("radius_error", frappe.get_traceback(), update_modified=True)
+			# Persist the terminal state before propagating: callers that roll back
+			# on exception (e.g. the retry scheduler) must not lose the voucher
+			# milestone — otherwise a re-run would re-create the voucher.
+			frappe.db.commit()
 			raise
 
 		sale.db_set("voucher_code", result["name"], update_modified=True)
@@ -688,6 +745,10 @@ def fulfill_voucher_sale(sale_name):
 			# instead of a stranded "Voucher Created".
 			sale.db_set("status", "Fulfillment Failed", update_modified=True)
 			sale.db_set("radius_error", frappe.get_traceback(), update_modified=True)
+			# Persist the terminal state before propagating: callers that roll back
+			# on exception (e.g. the retry scheduler) must not lose the voucher
+			# milestone — otherwise a re-run would re-create the voucher.
+			frappe.db.commit()
 			raise
 		sale.db_set("invoice_doctype", invoice_type, update_modified=True)
 		sale.db_set("invoice_name", invoice_name, update_modified=True)

@@ -95,3 +95,43 @@ class TestRadiusDeskConnector(IntegrationTestCase):
 		connector = RadiusDeskConnector("https://rd.example.com/cake4/rd_cake", "u", "p", "1")
 		self.assertTrue(connector._base_url.endswith("/cake4/rd_cake"))
 		self.assertFalse(connector._base_url.endswith("/cake4/rd_cake/cake4/rd_cake"))
+
+	@patch("radius_desk.radius_desk.utils.radiusdesk.get_request_session")
+	def test_find_voucher_by_extra_value_parses_wrapped_index_response(self, mock_get_session):
+		session = Mock()
+		login_resp = Mock()
+		login_resp.raise_for_status.return_value = None
+		login_resp.json.return_value = {"success": True, "data": {"token": "tok"}}
+		lookup_resp = Mock()
+		lookup_resp.raise_for_status.return_value = None
+		# cake4 index responses wrap rows: {"data": {"data": [...]}}
+		lookup_resp.json.return_value = {
+			"success": True,
+			"data": {"data": [{"id": 55, "name": "ADOPTED-1"}]},
+		}
+		session.post.return_value = login_resp
+		session.get.return_value = lookup_resp
+		mock_get_session.return_value = session
+
+		result = self.connector.find_voucher_by_extra_value("RD-VS-20260912-00001")
+
+		self.assertEqual(result, {"id": 55, "name": "ADOPTED-1"})
+		lookup_url = session.get.call_args_list[0].args[0]
+		self.assertTrue(lookup_url.endswith("/cake4/rd_cake/vouchers/index.json"))
+		params = session.get.call_args_list[0].kwargs["params"]
+		self.assertEqual(params["extra_value"], "RD-VS-20260912-00001")
+
+	@patch("radius_desk.radius_desk.utils.radiusdesk.get_request_session")
+	def test_find_voucher_by_extra_value_returns_none_when_no_match(self, mock_get_session):
+		session = Mock()
+		login_resp = Mock()
+		login_resp.raise_for_status.return_value = None
+		login_resp.json.return_value = {"success": True, "data": {"token": "tok"}}
+		lookup_resp = Mock()
+		lookup_resp.raise_for_status.return_value = None
+		lookup_resp.json.return_value = {"success": True, "data": {"data": []}}
+		session.post.return_value = login_resp
+		session.get.return_value = lookup_resp
+		mock_get_session.return_value = session
+
+		self.assertIsNone(self.connector.find_voucher_by_extra_value("RD-NOPE"))
