@@ -333,7 +333,10 @@ Manual QA checklist (live hardware):
 ```
 Phase 1 (full-page flow, ships value alone):
   ① Install app + Settings + Plans on njeremoto.jh.erpnext.com;
-     verify site doesn't hibernate; add droplet keep-alive cron
+     set Radius Desk Settings > Hotspot Login URL to the router's exact
+     login URL (e.g. http://192.168.88.1/login) — pins fragment delivery
+     to that URL only; verify site doesn't hibernate; add droplet
+     keep-alive cron
   ② Upload hotspot/ with hash-reader + rescue banner +
      "Open shop in full page" link (no iframe yet)
   ③ Run 04-walled-garden.rsc (portal + DoH blocks)
