@@ -44,6 +44,12 @@ class TestPOSVoucherFlowE2E(AccountsTestMixin, IntegrationTestCase):
 		# The receivable account must follow so party-currency checks accept
 		# USD invoices.
 		frappe.db.set_value("Company", "_Test Company", "default_currency", "USD")
+		# erpnext memoizes company currency per process (frappe.flags.company_currency)
+		# and db.set_value cannot invalidate it. Test modules that run before this
+		# one cache INR, which would make validate_currency reject the INR invoice
+		# in test_unsupported_currency_fails_fast_before_gateway. Drop the memo so
+		# the USD flip above is actually observed.
+		frappe.flags.company_currency.pop("_Test Company", None)
 		frappe.db.set_value("Account", self.debit_to, "account_currency", "USD")
 		create_item("WiFi Voucher", is_stock_item=0, company="_Test Company")
 		self.create_customer("Walk-in Customer")

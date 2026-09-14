@@ -73,8 +73,7 @@
 			"fieldname": "price",
 			"fieldtype": "Currency",
 			"label": "Price",
-			"read_only": 1,
-			"reqd": 1
+			"read_only": 1
 		},
 		{
 			"fieldname": "currency",
@@ -99,7 +98,7 @@
 	"grid_page_length": 50,
 	"index_web_pages_for_search": 1,
 	"links": [],
-	"modified": "2026-08-22 00:00:00.000000",
+	"modified": "2026-09-14 20:59:53.098453",
 	"modified_by": "Administrator",
 	"module": "Radius Desk",
 	"name": "Voucher Plan",

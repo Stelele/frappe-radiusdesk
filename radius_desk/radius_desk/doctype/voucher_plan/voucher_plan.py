@@ -9,6 +9,7 @@ class VoucherPlan(Document):
 	def validate(self):
 		self.validate_currency_matches_company()
 		self.sync_price_from_item()
+		self.validate_price_available()
 
 	def sync_price_from_item(self):
 		"""Keep the stored Price in step with the item's Standard Selling price
@@ -23,6 +24,22 @@ class VoucherPlan(Document):
 			self.price = price
 			if currency:
 				self.currency = currency
+
+	def validate_price_available(self):
+		"""The price field is read-only (synced from Item Price), so it cannot
+		be marked mandatory on the schema. Enforce the invariant here with an
+		actionable message instead of a generic missing-value error."""
+		if self.price in (None, ""):
+			from radius_desk.radius_desk.doctype.voucher_sale.voucher_sale import (
+				get_standard_selling_price_list,
+			)
+
+			price_list = get_standard_selling_price_list(self.company)
+			frappe.throw(
+				_(
+					"No selling Item Price found for Item {0} in price list {1}. Please add an Item Price first."
+				).format(self.item, price_list)
+			)
 
 	def validate_currency_matches_company(self):
 		company_currency = frappe.db.get_value("Company", self.company, "default_currency")
