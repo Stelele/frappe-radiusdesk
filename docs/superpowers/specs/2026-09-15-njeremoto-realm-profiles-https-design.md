@@ -24,9 +24,8 @@ Goals:
   retires for vouchers (never deleted while retries may reference it).
 - Profiles `3 Hour Uncapped`, `5 Hour Uncapped`, `24 Hour Uncapped` clone
   profile 49's components exactly (speeds, burst, Simultaneous-Use=1),
-  differing only in name + time cap. A 4th `1 Hour Uncapped (Njeremoto)`
-  profile is created rather than reusing profile 49 IF the spike shows 49
-  is realm-bound to Dev (decision after spike; default assumption: clone).
+  differing only in name + time cap. The 1h plan reuses profile 49
+  (spike-proven realm-agnostic — no 4th profile needed).
 - Proven end-to-end: a test voucher under Njeremoto authenticates through
   the live hotspot with correct speeds AND correct time cap before any plan
   points at it.
@@ -63,8 +62,9 @@ Phase 0 — Pre-flight spikes (READ-ONLY, no writes; all must pass first)
       3600s cap and the burst string (Mikrotik-Rate-Limit). If the cap is
       NOT a profile/API field (e.g. direct-DB-only), the write mechanism
       (API vs documented droplet-MySQL step) is named here before Phase 1.
-  S2. Check profile 49's realm binding → decides: reuse 49 vs clone a 4th
-      1h profile under Njeremoto. Default: clone (safer).
+  S2. Check profile 49's realm binding → DECIDED (spike appendix):
+      profiles carry no realm_id and simpleAdd takes no realm — profiles
+      are realm-agnostic, so the 1h plan REUSES profile 49 (no 4th clone).
   S3. Establish session_auto_close=3600 semantics (session age vs interim
       staleness). If age-based, it MUST be raised/scoped before any 3h+
       plan sells — a 24h buyer silently capped at 1h loses real money.
@@ -100,8 +100,8 @@ Phase 3 — Plan mapping (ERPNext Desk, operator)
   ├─ prerequisite FIRST: Item + Item Price rows for each duration
   │   (plan.price is read-only, synced from the selling price list;
   │   without them Desk refuses to save the plan)
-  ├─ update the 1h plan in place → realm Njeremoto (+ new 1h profile ID
-  │   if S2 decided clone)
+  ├─ update the 1h plan in place → realm Njeremoto, keep profile 49
+  │   (realm-agnostic per spike — no clone needed)
   ├─ create 3h / 5h / 24h plans (realm Njeremoto + new profile IDs,
   │   item + company + price + currency + sort order)
   ├─ disable legacy Dev-realm plan records — BUT first audit every plan
@@ -151,6 +151,41 @@ Phase 4 — HTTPS hotspot (router, last; PRE-FLIGHT REDESIGN REQUIRED —
   rollback drill before sign-off.
 - Deferred (explicitly out of scope): scheduler/webhook/email verification,
   break-glass voucher stock, walled-garden re-resolution live check.
+
+## Phase 0 spike appendix (executed 2026-09-15, read-only + one realm create)
+
+- **Auth**: `dashboard/authenticate.json` with `token=` + root credentials works
+  against `https://radius.giftmugweni.com`.
+- **Endpoint shapes discovered**: `cloud_id` must ride the **query string**
+  (`?cloud_id=23`), not the POST body, for `profiles/index.json`;
+  list responses use ExtJS shape `{"items": [...], "totalCount"}`.
+  `profiles/view.json`, `profile_components/view.json`, `radgroupcheck/*`,
+  `radgroupreply/*`, `checks/*`, `replies/*` do **not** exist;
+  `profile-components/index.json` lists components (id, name, check/reply
+  counts) but not attribute values.
+- **Cap/burst values (repo docs confirmed complete)**: `SimpleAdd_49` =
+  check `Rd-Reset-Type-Time := never`, `Rd-Total-Time := 3600`,
+  `Rd-Cap-Type-Time := hard`, `Simultaneous-Use := 1` (4 rows, matches
+  `check_attribute_count: 4`); reply `Fall-Through := Yes`,
+  `Mikrotik-Rate-Limit := 10M/5M 15M/8M 10M/5M 5/5` (2 rows). WISPr rows
+  are absent live — the burst string replaced them via direct edit.
+- **`simpleAdd` source read** (rdcore, cake4 branch): accepts
+  `time_limit_enabled=true` + `time_amount`/`time_reset`/`time_cap`,
+  `speed_*`, `session_limit_enabled`/`session_limit`; auto-creates
+  `SimpleAdd_<profile_id>` + radusergroups link + `_doRadius` rows; does
+  NOT write the burst string. New profiles are created with limits
+  disabled and get exact-clone rows via the script's SQL step instead.
+- **Reuse-vs-clone DECIDED: reuse profile 49.** Profile items carry no
+  `realm_id`; `simpleAdd` takes no realm; vouchers bind realm at creation.
+  Profiles are realm-agnostic, so no 4th profile is needed. The 1h plan
+  keeps profile 49 under the Njeremoto realm.
+- **session_auto_close=3600**: lives on the NAS client record, consumed by
+  the `rd auto_close` cron; by design it closes *stale* (non-updating)
+  sessions. Hotspot interim updates every 10 min keep active sessions
+  fresh (6x inside the window), so 3h/5h/24h sessions are unaffected.
+  Backstop: Phase 2 gate + watch the first long sale.
+- **Realm created**: `Njeremoto`, id **20**, `cloud_id=23`, all suffix flags
+  false (bare voucher codes, same as Dev flow).
 
 ## Limitations / open risks
 
