@@ -57,15 +57,16 @@ block page_content %}
 				placeholder="e.g. 0771234567"
 			/>
 		</div>
-		<div class="form-group">
-			<label>{{ _("Payment Method") }}</label>
-			<select class="form-control" id="payment-method">
-				<option value="EcoCash" selected>EcoCash</option>
-				<option value="InnBucks">InnBucks</option>
-				<option value="Omari">Omari</option>
-			</select>
-			<div id="method-hint" class="small text-muted mt-1"></div>
+	<div class="form-group">
+		<label>{{ _("Payment Method") }}</label>
+		<div role="radiogroup" aria-label="{{ _('Payment method') }}">
+			<button type="button" class="rd-method-card selected" role="radio" aria-checked="true" data-method="EcoCash">EcoCash</button>
+			<button type="button" class="rd-method-card" role="radio" aria-checked="false" data-method="InnBucks">InnBucks</button>
+			<button type="button" class="rd-method-card" role="radio" aria-checked="false" data-method="Omari">Omari</button>
 		</div>
+		<input type="hidden" id="payment-method-fallback" value="EcoCash">
+		<div id="method-hint" class="small text-muted mt-1"></div>
+	</div>
 		<button class="btn btn-primary btn-block" id="pay-button">{{ _("Pay Now") }}</button>
 	</div>
 

@@ -140,3 +140,17 @@ class TestEmbedPageRendering(IntegrationTestCase):
 		for path in ("/voucher-checkout/", "/voucher-checkout/?embed=1"):
 			html = self._get(path)
 			self.assertIn("/assets/radius_desk/css/hotspot-theme.css", html)
+
+	def test_payment_method_cards_rendered(self):
+		html = self._get("/voucher-checkout/")
+		self.assertEqual(html.count('class="rd-method-card'), 3)
+		for method in ("EcoCash", "InnBucks", "Omari"):
+			self.assertIn(f'data-method="{method}"', html)
+		self.assertIn(
+			'<button type="button" class="rd-method-card selected" role="radio" '
+			'aria-checked="true" data-method="EcoCash">EcoCash</button>',
+			html,
+		)
+		self.assertIn('id="payment-method-fallback" value="EcoCash"', html)
+		# NOTE: the quoted id below does NOT match id="payment-method-fallback".
+		self.assertNotIn('id="payment-method"', html)
