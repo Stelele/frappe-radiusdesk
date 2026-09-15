@@ -13,7 +13,6 @@ frappe.ready(() => {
 	const $resultPanel = $("#result-panel");
 	const $selectedPlan = $("#selected-plan");
 	const $phone = $("#phone-number");
-	const $method = $("#payment-method");
 	const $payButton = $("#pay-button");
 	const $voucherCode = $("#voucher-code");
 
@@ -23,12 +22,21 @@ frappe.ready(() => {
 		Omari: "The Omari app needs mobile data to approve — keep mobile data ON.",
 	};
 	const $methodHint = $("#method-hint");
+	const $methodFallback = $("#payment-method-fallback");
+	let selected_method = "EcoCash";
 
-	function show_method_hint() {
-		$methodHint.text(METHOD_HINTS[$method.val()] || "");
+	function show_method_hint(m) {
+		$methodHint.text(METHOD_HINTS[m] || "");
 	}
-	show_method_hint();
-	$method.on("change", show_method_hint);
+	show_method_hint(selected_method);
+	$methodFallback.val(selected_method);
+	$(".rd-method-card").on("click", function () {
+		selected_method = $(this).data("method");
+		$(".rd-method-card").attr("aria-checked", "false").removeClass("selected");
+		$(this).attr("aria-checked", "true").addClass("selected");
+		$methodFallback.val(selected_method);
+		show_method_hint(selected_method);
+	});
 
 	// Deliver the voucher code to the hotspot login page (embed mode only).
 	function deliver_code(code) {
@@ -88,7 +96,7 @@ frappe.ready(() => {
 		frappe
 			.call({
 				method: "radius_desk.radius_desk.doctype.voucher_sale.voucher_sale.create_web_checkout",
-				args: { plan: selected_plan, phone_number: phone, payment_method: $method.val() },
+				args: { plan: selected_plan, phone_number: phone, payment_method: selected_method },
 				silent: true,
 				error_msg: document.getElementById("checkout-error-sink"),
 			})
