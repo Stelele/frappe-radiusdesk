@@ -489,6 +489,19 @@ class TestVoucherSale(AccountsTestMixin, IntegrationTestCase):
 		vs._validate_pesepay_combo("EcoCash", "USD")
 		vs._validate_pesepay_combo("EcoCash", "ZiG")
 
+	def test_create_web_checkout_rejects_unknown_method(self):
+		"""The card selector must not smuggle unvalidated values: an unknown
+		payment_method is rejected by the DocType's Select options before any
+		gateway call (belt-and-braces behind the combo check)."""
+		with (
+			patch("radius_desk.radius_desk.doctype.voucher_sale.voucher_sale.make_seamless_payment") as mock_pay,
+			patch("radius_desk.radius_desk.doctype.voucher_sale.voucher_sale.get_pesepay_mode_of_payment"),
+		):
+			with self.assertRaisesRegex(frappe.ValidationError, "cannot be"):
+				vs.create_web_checkout(self.plan.name, "0777777777", "FakePay")
+
+		mock_pay.assert_not_called()
+
 	def test_ensure_system_user_grants_warehouse_read(self):
 		"""The system user needs Warehouse read as insurance for stock-item
 		sales (warehouse lookup paths), so it is granted explicitly."""
