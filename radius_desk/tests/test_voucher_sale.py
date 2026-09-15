@@ -635,6 +635,60 @@ class TestVoucherSale(AccountsTestMixin, IntegrationTestCase):
 			with self.assertRaises(frappe.exceptions.TooManyRequestsError):
 				vs.create_web_checkout(self.plan.name, phone, "EcoCash")
 
+	def test_guest_web_checkout_confirm_success_completes_sale(self):
+		"""A Guest poll that observes PesaPay SUCCESS must complete the sale.
+
+		The guest endpoint resolves the sale through its unguessable
+		checkout_token, but the shared confirmation core is also exposed to
+		the POS client with strict permission checks — the guest path must use
+		the non-permission-checked core without weakening the public endpoint.
+		"""
+		suffix = uuid.uuid4().hex[:8]
+		token = f"tok-guest-{suffix}"
+		ref = f"PES-GUEST-{suffix.upper()}"
+		sale = self._make_sale()
+		sale.db_set("status", "Payment Pending", update_modified=True)
+		sale.db_set("merchant_reference", ref, update_modified=True)
+		sale.db_set("poll_url", "https://poll.example.com", update_modified=True)
+		sale.db_set("payment_gateway", "Pesepay-Test Gateway", update_modified=True)
+		sale.db_set("checkout_token", token, update_modified=True)
+		frappe.cache().delete(frappe.cache().make_key(f"rd-pesepay-poll:{token}"))
+		if frappe.db.exists("Integration Request", ref):
+			frappe.delete_doc("Integration Request", ref, force=True)
+		ir = frappe.get_doc(
+			{"doctype": "Integration Request", "integration_request_service": "Pesepay"}
+		)
+		ir.flags._name = ref
+		ir.insert(ignore_permissions=True)
+
+		original_user = frappe.session.user
+		frappe.set_user("Guest")
+		try:
+			with self.assertRaises(frappe.PermissionError):
+				vs.confirm_voucher_payment(ref)
+			with (
+				patch(
+					"pesepay.pesepay.doctype.pesepay_settings.pesepay_settings.poll_payment_status",
+					return_value={"transactionStatus": "SUCCESS"},
+				),
+				patch(
+					"radius_desk.radius_desk.doctype.voucher_sale.voucher_sale._get_connector"
+				) as mock_conn,
+			):
+				mock_conn.return_value.create_voucher.return_value = {
+					"id": 77,
+					"name": f"GUEST-{suffix}",
+				}
+				result = vs.confirm_voucher_web_checkout(token)
+		finally:
+			frappe.set_user(original_user)
+
+		self.assertEqual(result["status"], "Completed")
+		self.assertEqual(result["voucher_code"], f"GUEST-{suffix}")
+		sale.reload()
+		self.assertEqual(sale.status, "Completed")
+		self.assertEqual(sale.voucher_code, f"GUEST-{suffix}")
+
 	def test_confirm_poll_backs_off_outbound_pesepay_calls(self):
 		"""confirm_voucher_web_checkout must not hammer PesaPay outbound —
 		at most one real poll per 3s per checkout_token."""

@@ -438,10 +438,14 @@ def reset_voucher_sale(sale_name):
 	return {"ok": True}
 
 
-@frappe.whitelist()
-def confirm_voucher_payment(merchant_reference):
-	"""POS client calls this once PesaPay reports SUCCESS. Marks the IR
-	completed, then fulfills. Returns the voucher code synchronously."""
+def _confirm_voucher_payment(merchant_reference, check_permission=True):
+	"""Shared payment-confirmation core.
+
+	`check_permission` stays True for direct API use (POS client). The guest
+	poll passes False because it has already resolved the sale through the
+	unguessable `checkout_token`; the payment itself is still only fulfilled
+	after the PesaPay poll reports SUCCESS.
+	"""
 	if not merchant_reference:
 		return {"ok": False, "error": _("Missing payment reference.")}
 
@@ -449,7 +453,7 @@ def confirm_voucher_payment(merchant_reference):
 	if not sale_name:
 		return {"ok": False, "error": _("No voucher sale found for this payment.")}
 
-	sale = frappe.get_doc("Voucher Sale", sale_name, check_permission=True)
+	sale = frappe.get_doc("Voucher Sale", sale_name, check_permission=check_permission)
 	if sale.status in SUCCESS_STATUSES and sale.voucher_code and sale.invoice_name:
 		return _fulfillment_result(sale)
 	if sale.status not in ("Payment Pending", "Payment Confirmed"):
@@ -471,6 +475,13 @@ def confirm_voucher_payment(merchant_reference):
 
 	sale.db_set("status", "Payment Confirmed", update_modified=True)
 	return {"ok": True, **fulfill_voucher_sale(sale.name)}
+
+
+@frappe.whitelist()
+def confirm_voucher_payment(merchant_reference):
+	"""POS client calls this once PesaPay reports SUCCESS. Marks the IR
+	completed, then fulfills. Returns the voucher code synchronously."""
+	return _confirm_voucher_payment(merchant_reference, check_permission=True)
 
 
 @frappe.whitelist()
@@ -584,7 +595,7 @@ def get_voucher_sale_status(checkout_token):
 	sale_name = frappe.db.get_value("Voucher Sale", {"checkout_token": checkout_token}, "name")
 	if not sale_name:
 		return {"status": "Not Found"}
-	sale = frappe.get_doc("Voucher Sale", sale_name)
+	sale = frappe.get_doc("Voucher Sale", sale_name, ignore_permissions=True)
 	result = {"status": sale.status, "amount": sale.amount, "currency": sale.currency, "plan": sale.plan}
 	if sale.status == "Completed" and sale.voucher_code:
 		result["voucher_code"] = sale.voucher_code
@@ -625,7 +636,7 @@ def confirm_voucher_web_checkout(checkout_token):
 			result = poll_payment_status(sale.poll_url, sale.payment_gateway) or {}
 			pesa_status = result.get("transactionStatus")
 			if pesa_status == "SUCCESS":
-				confirm_voucher_payment(sale.merchant_reference)
+				_confirm_voucher_payment(sale.merchant_reference, check_permission=False)
 				sale = frappe.get_doc("Voucher Sale", sale_name, ignore_permissions=True)
 				return {"status": "Completed", **_fulfillment_result(sale)}
 			if pesa_status == "FAILED":
