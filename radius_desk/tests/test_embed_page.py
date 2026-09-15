@@ -135,3 +135,8 @@ class TestEmbedPageRendering(IntegrationTestCase):
 		)
 		self.assertIn('"linklogin": null', html)
 		self.assertNotIn("alert(1)", html)
+
+	def test_theme_stylesheet_linked_in_both_modes(self):
+		for path in ("/voucher-checkout/", "/voucher-checkout/?embed=1"):
+			html = self._get(path)
+			self.assertIn("/assets/radius_desk/css/hotspot-theme.css", html)
