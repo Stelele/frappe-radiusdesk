@@ -15,6 +15,8 @@ frappe.ready(() => {
 	const $phone = $("#phone-number");
 	const $payButton = $("#pay-button");
 	const $voucherCode = $("#voucher-code");
+	const $modal = $("#checkout-modal");
+	const $modalClose = $("#modal-close");
 
 	const METHOD_HINTS = {
 		EcoCash: "Approve on your phone with your EcoCash PIN — works without mobile data.",
@@ -70,13 +72,50 @@ frappe.ready(() => {
 		}
 	}
 
+	function is_polling() {
+		return poll_interval !== null;
+	}
+
+	function open_checkout() {
+		$checkoutPanel.show();
+		$statusPanel.hide();
+		$resultPanel.hide();
+		$payButton.prop("disabled", false);
+		$modal.show().addClass("open");
+		$modalClose.show();
+	}
+
+	function close_checkout() {
+		// Never strand a payment mid-poll: the modal stays put until the
+		// sale reaches a terminal state. The sale finalizes server-side
+		// regardless; the code remains retrievable from Voucher Sale records.
+		if (is_polling()) return;
+		clearInterval(poll_interval);
+		poll_interval = null;
+		$modal.hide().removeClass("open");
+	}
+
+	$modalClose.on("click", close_checkout);
+	$(document).on("keydown.rdModal", (e) => {
+		if (e.key === "Escape") close_checkout();
+	});
+	$modal.on("click", function (e) {
+		if (e.target === this) close_checkout();
+	});
+
 	$planList.on("click", ".plan-select", function () {
 		const $card = $(this).closest(".card");
 		selected_plan = $card.attr("data-plan");
 		const price = $card.attr("data-price-html");
 		$selectedPlan.text(`${$card.find(".font-weight-bold").first().text()} — ${price}`);
-		$checkoutPanel.show();
-		$checkoutPanel[0].scrollIntoView({ behavior: "smooth", block: "center" });
+		// A fresh purchase supersedes any previous one; the old sale keeps
+		// finalizing server-side and its code stays in Voucher Sale records.
+		// Payment-method selection is preserved across modal opens.
+		clearInterval(poll_interval);
+		poll_interval = null;
+		checkout_token = null;
+		poll_count = 0;
+		open_checkout();
 	});
 
 	$payButton.on("click", () => {
@@ -110,6 +149,7 @@ frappe.ready(() => {
 				checkout_token = msg.checkout_token;
 				set_status(__("Waiting for you to approve the payment on your phone..."));
 				poll_interval = setInterval(poll_status, 3000);
+				$modalClose.hide();
 			})
 			.catch(() => {
 				set_status(__("Payment could not be initiated. Please try again."), true);
@@ -129,6 +169,8 @@ frappe.ready(() => {
 				const st = r.message || {};
 				if (poll_count > MAX_POLLS) {
 					clearInterval(poll_interval);
+					poll_interval = null;
+					$modalClose.show();
 					set_status(
 						__(
 							"Payment is still being processed. If approved on your phone, please ask the cafe staff to check your purchase.",
@@ -139,6 +181,8 @@ frappe.ready(() => {
 				}
 				if (st.status === "Completed" && st.voucher_code) {
 					clearInterval(poll_interval);
+					poll_interval = null;
+					$modalClose.show();
 					$checkoutPanel.hide();
 					$statusPanel.hide();
 					$voucherCode.text(st.voucher_code);
@@ -146,10 +190,14 @@ frappe.ready(() => {
 					deliver_code(st.voucher_code);
 				} else if (st.status === "Payment Failed") {
 					clearInterval(poll_interval);
+					poll_interval = null;
+					$modalClose.show();
 					set_status(__("Payment was declined. Please try again."), true);
 					$payButton.prop("disabled", false);
 				} else if (st.status === "Fulfillment Failed") {
 					clearInterval(poll_interval);
+					poll_interval = null;
+					$modalClose.show();
 					set_status(
 						__(
 							"Payment received, but the voucher could not be created. Please contact support.",

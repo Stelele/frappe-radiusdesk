@@ -1,4 +1,4 @@
-{% if embed %}{% extends "radius_desk/www/voucher-checkout/embed_base.html" %}{% else %}{% extends "templates/web.html" %}{% endif %} {% block style %}{{ super() }}<link rel="stylesheet" href="/assets/radius_desk/css/hotspot-theme.css?v=20260916">{% endblock %} {% block title %}{{ _("Buy WiFi Voucher") }}{% endblock %} {%
+{% if embed %}{% extends "radius_desk/www/voucher-checkout/embed_base.html" %}{% else %}{% extends "templates/web.html" %}{% endif %} {% block style %}{{ super() }}<link rel="stylesheet" href="/assets/radius_desk/css/hotspot-theme.css?v=20260916-2">{% endblock %} {% block title %}{{ _("Buy WiFi Voucher") }}{% endblock %} {%
 block page_content %}
 	{% if embed %}
 	<script>
@@ -42,35 +42,65 @@ block page_content %}
 		{% endfor %}
 	</div>
 
-	<div id="checkout-panel" class="mt-4" style="display: none">
-		<h5 class="mb-3">{{ _("Checkout") }}</h5>
-		<div class="form-group">
-			<label>{{ _("Selected Plan") }}</label>
-			<div id="selected-plan" class="form-control"></div>
-		</div>
-		<div class="form-group">
-			<label>{{ _("Phone Number") }} <span class="text-danger">*</span></label>
-			<input
-				type="text"
-				class="form-control"
-				id="phone-number"
-				placeholder="e.g. 0771234567"
-			/>
-		</div>
-	<div class="form-group">
-		<label>{{ _("Payment Method") }}</label>
-		<div role="radiogroup" aria-label="{{ _('Payment method') }}">
-			<button type="button" class="rd-method-card selected" role="radio" aria-checked="true" data-method="EcoCash">EcoCash</button>
-			<button type="button" class="rd-method-card" role="radio" aria-checked="false" data-method="InnBucks">InnBucks</button>
-			<button type="button" class="rd-method-card" role="radio" aria-checked="false" data-method="Omari">Omari</button>
-		</div>
-		<input type="hidden" id="payment-method-fallback" value="EcoCash">
-		<div id="method-hint" class="small text-muted mt-1"></div>
-	</div>
-		<button class="btn btn-primary btn-block" id="pay-button">{{ _("Pay Now") }}</button>
-	</div>
+	<div id="checkout-modal" class="rd-modal-overlay" style="display: none">
+		<div class="rd-modal-card" role="dialog" aria-modal="true" aria-label="{{ _('Checkout') }}">
+			<button type="button" id="modal-close" class="rd-modal-close" aria-label="{{ _('Close') }}">&times;</button>
+			<div id="checkout-panel">
+				<h5 class="mb-3">{{ _("Checkout") }}</h5>
+				<div class="form-group">
+					<label>{{ _("Selected Plan") }}</label>
+					<div id="selected-plan" class="form-control"></div>
+				</div>
+				<div class="form-group">
+					<label>{{ _("Phone Number") }} <span class="text-danger">*</span></label>
+					<input
+						type="text"
+						class="form-control"
+						id="phone-number"
+						placeholder="e.g. 0771234567"
+					/>
+				</div>
+				<div class="form-group">
+					<label>{{ _("Payment Method") }}</label>
+					<div class="rd-method-row" role="radiogroup" aria-label="{{ _('Payment method') }}">
+						<button type="button" class="rd-method-card selected" role="radio" aria-checked="true" data-method="EcoCash">EcoCash</button>
+						<button type="button" class="rd-method-card" role="radio" aria-checked="false" data-method="InnBucks">InnBucks</button>
+						<button type="button" class="rd-method-card" role="radio" aria-checked="false" data-method="Omari">Omari</button>
+					</div>
+					<input type="hidden" id="payment-method-fallback" value="EcoCash">
+					<div id="method-hint" class="small text-muted mt-1"></div>
+				</div>
+				<button class="btn btn-primary btn-block" id="pay-button">{{ _("Pay Now") }}</button>
+			</div>
 
-	<div id="status-panel" class="mt-4" style="display: none"></div>
+			<div id="status-panel" class="mt-4" style="display: none"></div>
+
+		<div id="result-panel" class="mt-4" style="display: none">
+			<div class="alert alert-success">
+				<h5>{{ _("Payment successful!") }}</h5>
+				<div class="mb-2">{{ _("Use this voucher code to log in to the WiFi network:") }}</div>
+				<div
+					id="voucher-code"
+					class="text-center py-3"
+					style="
+						font-size: 1.6rem;
+						font-weight: bold;
+						letter-spacing: 0.15em;
+						border: 2px dashed #28a745;
+						border-radius: 6px;
+					"
+				></div>
+				<button
+					class="btn btn-outline-secondary btn-block mt-3"
+					id="print-button"
+					onclick="window.print()"
+				>
+					{{ _("Print Receipt") }}
+				</button>
+			</div>
+		</div>
+		</div>
+	</div>
 
 	<div id="checkout-error-sink" style="display: none"></div>
 	<style>
@@ -78,31 +108,6 @@ block page_content %}
 			display: none !important;
 		}
 	</style>
-
-	<div id="result-panel" class="mt-4" style="display: none">
-		<div class="alert alert-success">
-			<h5>{{ _("Payment successful!") }}</h5>
-			<div class="mb-2">{{ _("Use this voucher code to log in to the WiFi network:") }}</div>
-			<div
-				id="voucher-code"
-				class="text-center py-3"
-				style="
-					font-size: 1.6rem;
-					font-weight: bold;
-					letter-spacing: 0.15em;
-					border: 2px dashed #28a745;
-					border-radius: 6px;
-				"
-			></div>
-			<button
-				class="btn btn-outline-secondary btn-block mt-3"
-				id="print-button"
-				onclick="window.print()"
-			>
-				{{ _("Print Receipt") }}
-			</button>
-		</div>
-	</div>
 	{% endif %}
 </div>
 

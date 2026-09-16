@@ -154,3 +154,12 @@ class TestEmbedPageRendering(IntegrationTestCase):
 		self.assertIn('id="payment-method-fallback" value="EcoCash"', html)
 		# NOTE: the quoted id below does NOT match id="payment-method-fallback".
 		self.assertNotIn('id="payment-method"', html)
+
+	def test_checkout_modal_structure(self):
+		html = self._get("/voucher-checkout/")
+		modal_at = html.index('id="checkout-modal"')
+		# radiogroup, close button and all three panels live inside the modal
+		self.assertIn('class="rd-method-row"', html[modal_at:])
+		self.assertIn('id="modal-close"', html[modal_at:])
+		for panel in ('id="checkout-panel"', 'id="status-panel"', 'id="result-panel"'):
+			self.assertGreater(html.index(panel), modal_at, panel)

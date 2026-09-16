@@ -11,6 +11,45 @@ body[data-path="voucher-checkout"] .rd-embed {
 	color: #fff;
 }
 body[data-path="voucher-checkout"] .voucher-checkout {
+	padding-bottom: 40px;
+}
+/* Checkout modal: fixed overlay + centered card, hotspot card aesthetic. */
+body[data-path="voucher-checkout"] .rd-modal-overlay {
+	position: fixed;
+	inset: 0;
+	z-index: 1050;
+	display: none;
+	overflow-y: auto;
+	padding: 24px 16px;
+	background: rgba(10, 10, 25, 0.7);
+}
+body[data-path="voucher-checkout"] .rd-modal-overlay.open {
+	display: block;
+}
+body[data-path="voucher-checkout"] .rd-modal-card {
+	position: relative;
+	max-width: 420px;
+	margin: 8vh auto;
+	padding: 24px 20px;
+	border: 1px solid rgba(255, 255, 255, 0.15);
+	border-radius: 12px;
+	background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+	color: #fff;
+}
+body[data-path="voucher-checkout"] .rd-modal-close {
+	position: absolute;
+	top: 8px;
+	right: 12px;
+	width: 44px;
+	height: 44px;
+	border: none;
+	background: none;
+	color: #1EBAB9;
+	font-size: 28px;
+	line-height: 1;
+	cursor: pointer;
+}
+body[data-path="voucher-checkout"] .voucher-checkout {
 	padding: 0 20px;
 }
 body[data-path="voucher-checkout"] .voucher-checkout h3,
@@ -132,18 +171,21 @@ body[data-path="voucher-checkout"] .modal-header .close,
 body[data-path="voucher-checkout"] .modal-header .btn-close {
 	color: #fff;
 }
-/* Payment method cards (Task 3 markup). */
+/* Payment method cards: inline row, even spacing via flex + gap. */
+body[data-path="voucher-checkout"] .rd-method-row {
+	display: flex;
+	gap: 10px;
+}
 body[data-path="voucher-checkout"] .rd-method-card {
-	display: block;
-	width: 100%;
-	margin: 0 0 10px;
-	padding: 12px;
+	flex: 1 1 0;
+	margin: 0;
+	padding: 10px 4px;
 	border: 1px solid rgba(255, 255, 255, 0.15);
 	border-radius: 8px;
 	background: rgba(255, 255, 255, 0.08);
 	color: #fff;
 	font-family: inherit;
-	font-size: 15px;
+	font-size: 14px;
 	font-weight: 600;
 	text-align: center;
 	cursor: pointer;
@@ -166,5 +208,14 @@ body[data-path="voucher-checkout"] .rd-method-card:focus-visible {
 		color: #000 !important;
 		border-color: #000 !important;
 		box-shadow: none !important;
+	}
+	body[data-path="voucher-checkout"] .rd-modal-overlay {
+		position: static !important;
+		background: #fff !important;
+		padding: 0 !important;
+	}
+	body[data-path="voucher-checkout"] .rd-modal-close,
+	body[data-path="voucher-checkout"] #print-button {
+		display: none !important;
 	}
 }
