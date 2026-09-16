@@ -10,6 +10,22 @@ body[data-path="voucher-checkout"] .voucher-checkout,
 body[data-path="voucher-checkout"] .rd-embed {
 	color: #fff;
 }
+body[data-path="voucher-checkout"] .voucher-checkout {
+	padding: 0 20px;
+}
+body[data-path="voucher-checkout"] .voucher-checkout h3,
+body[data-path="voucher-checkout"] .rd-embed h3,
+body[data-path="voucher-checkout"] #checkout-panel h5 {
+	color: #fff !important;
+	text-align: center;
+}
+body[data-path="voucher-checkout"] .voucher-checkout h3,
+body[data-path="voucher-checkout"] .rd-embed h3 {
+	margin: 24px 0 20px;
+}
+body[data-path="voucher-checkout"] #checkout-panel label .text-danger {
+	color: #1EBAB9 !important;
+}
 body[data-path="voucher-checkout"] .voucher-checkout .card,
 body[data-path="voucher-checkout"] .rd-embed .card {
 	background: rgba(255, 255, 255, 0.08);
@@ -83,6 +99,7 @@ body[data-path="voucher-checkout"] #voucher-code {
 }
 body[data-path="voucher-checkout"] .navbar {
 	background: #141428 !important;
+	border-bottom: none !important;
 }
 body[data-path="voucher-checkout"] .navbar .navbar-brand,
 body[data-path="voucher-checkout"] .navbar .nav-link {
@@ -93,6 +110,7 @@ body[data-path="voucher-checkout"] .navbar .dropdown-menu {
 }
 body[data-path="voucher-checkout"] .web-footer {
 	background: #141428;
+	border-top: none !important;
 	color: rgba(255, 255, 255, 0.6);
 }
 body[data-path="voucher-checkout"] .breadcrumb {
