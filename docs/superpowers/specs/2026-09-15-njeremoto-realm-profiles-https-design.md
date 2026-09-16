@@ -186,6 +186,16 @@ Phase 4 — HTTPS hotspot (router, last; PRE-FLIGHT REDESIGN REQUIRED —
   Backstop: Phase 2 gate + watch the first long sale.
 - **Realm created**: `Njeremoto`, id **20**, `cloud_id=23`, all suffix flags
   false (bare voucher codes, same as Dev flow).
+- **Profiles created 2026-09-15** via `provision-njeremoto.sh`: `3 Hour
+  Uncapped` id **53** (cap 10800s), `5 Hour Uncapped` id **54** (cap
+  18000s), `24 Hour Uncapped` id **52** (cap 86400s). Shells via
+  `simple-add.json` (limits disabled); cap/burst rows written by explicit
+  droplet SQL mirroring live profile 49 exactly; `--verify` confirms
+  `time_cap_in_profile=true` on all three via API.
+- **API quirks found during provisioning** (baked into the script):
+  `cloud_id` must ride the query string (not POST body) for `*/index.json`
+  endpoints; list responses use ExtJS `{"items": [...], "totalCount"}`;
+  `simple-add` responses omit the new id — the script re-fetches by name.
 
 ## Limitations / open risks
 
