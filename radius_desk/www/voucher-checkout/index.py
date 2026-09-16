@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 
 import frappe
+from frappe import _
 
 no_cache = 1
 
@@ -13,6 +14,12 @@ def get_context(context):
 
 	context.no_cache = 1
 	context.plans = get_voucher_plans()
+	# Brand the website footer for this page only: footer_info.html renders
+	# `footer_powered` raw when set, falling back to "Powered by ERPNext".
+	# (Embed mode strips the footer entirely, so this only affects normal mode.)
+	context.footer_powered = _("Powered by {0}").format(
+		'<a href="https://bsmtechsolutions.co.zw/" target="_blank" class="text-muted">Bsmitech Solutions</a>'
+	)
 
 	if frappe.form_dict.get("embed") == "1":
 		context.embed = True

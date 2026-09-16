@@ -129,6 +129,12 @@ class TestEmbedPageRendering(IntegrationTestCase):
 		self.assertNotIn("window.RD_EMBED = ", html)
 		self.assertNotIn('class="rd-embed"', html)
 
+	def test_footer_branded_bsmitech(self):
+		html = self._get("/voucher-checkout/")
+		self.assertIn("Bsmitech Solutions", html)
+		self.assertIn("https://bsmtechsolutions.co.zw/", html)
+		self.assertNotIn("frappe.io/erpnext?source=website_footer", html)
+
 	def test_injection_in_link_params_cannot_break_out(self):
 		html = self._get(
 			'/voucher-checkout/?embed=1&linklogin=http://192.168.88.1/login"><script>alert(1)</script>'
