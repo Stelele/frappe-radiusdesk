@@ -57,6 +57,62 @@ class TestValidateHotspotUrl(IntegrationTestCase):
 		self.assertIsNone(validate_hotspot_url(None))
 		self.assertIsNone(validate_hotspot_url("not a url"))
 
+	def test_portal_return_prefix_accepts_droplet_login_with_query(self):
+		"""Captive-portal return leg: the pinned https prefix passes with its
+		query string intact (the login page needs its params)."""
+		prefix = "https://radius.giftmugweni.com/login/"
+		url = (
+			"https://radius.giftmugweni.com/login/njeremoto/index.html"
+			"?nasid=njeremoto-cafe-01&type=mikrotik"
+		)
+		self.assertEqual(validate_hotspot_url(url, return_prefix=prefix), url)
+
+	def test_portal_return_prefix_rejects_wrong_host_scheme_path(self):
+		prefix = "https://radius.giftmugweni.com/login/"
+		self.assertIsNone(
+			validate_hotspot_url("https://evil.com/login/njeremoto/", return_prefix=prefix)
+		)
+		self.assertIsNone(
+			validate_hotspot_url(
+				"http://radius.giftmugweni.com/login/njeremoto/", return_prefix=prefix
+			)
+		)
+		self.assertIsNone(
+			validate_hotspot_url(
+				"https://radius.giftmugweni.com/other/page", return_prefix=prefix
+			)
+		)
+		self.assertIsNone(
+			validate_hotspot_url(
+				"https://radius.giftmugweni.com/login/\"><script>alert(1)</script>",
+				return_prefix=prefix,
+			)
+		)
+
+	def test_portal_return_absent_keeps_old_behavior(self):
+		# droplet hostname URLs still rejected without the prefix (fail closed)
+		self.assertIsNone(
+			validate_hotspot_url("https://radius.giftmugweni.com/login/njeremoto/")
+		)
+		# router URLs unaffected by the prefix
+		self.assertEqual(
+			validate_hotspot_url(
+				"http://192.168.88.1/login",
+				return_prefix="https://radius.giftmugweni.com/login/",
+			),
+			"http://192.168.88.1/login",
+		)
+
+	def test_misconfigured_prefix_fails_closed(self):
+		self.assertIsNone(
+			validate_hotspot_url(
+				"https://radius.giftmugweni.com/login/x", return_prefix="https://evil.com/"
+			)
+		)
+		self.assertIsNone(
+			validate_hotspot_url("https://radius.giftmugweni.com/login/x", return_prefix="")
+		)
+
 	def test_exact_match_required_when_expected_url_configured(self):
 		"""Production pins Hotspot Login URL in settings — only that exact URL
 		may receive the voucher fragment (blocks crafted links to other LAN hosts)."""

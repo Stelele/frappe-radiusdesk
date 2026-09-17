@@ -91,6 +91,19 @@ class TestEmbedContext(IntegrationTestCase):
 		context = self._get_context()
 		self.assertEqual(context.linklogin, "http://192.168.88.1/login")
 
+	def test_embed_mode_accepts_droplet_portal_return_url(self):
+		"""Captive-portal return leg: a droplet login URL (with query) passes
+		as linklogin so the portal can redirect #rd-voucher= back to it."""
+		droplet_url = (
+			"https://radius.giftmugweni.com/login/njeremoto/index.html"
+			"?nasid=njeremoto-cafe-01&type=mikrotik"
+		)
+		frappe.local.form_dict = frappe._dict({"embed": "1", "linklogin": droplet_url})
+		context = self._get_context()
+		self.assertEqual(context.linklogin, droplet_url)
+		parsed = json.loads(context.embed_json)
+		self.assertEqual(parsed["linklogin"], droplet_url)
+
 
 class TestEmbedPageRendering(IntegrationTestCase):
 	def _get(self, path):

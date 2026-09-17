@@ -16,7 +16,8 @@
     "pesepay_gateway",
     "selling_price_list",
     "section_break_hotspot",
-    "hotspot_login_url"
+    "hotspot_login_url",
+    "hotspot_portal_return_prefix"
    ],
  "fields": [
   {
@@ -90,6 +91,12 @@
     "fieldtype": "Data",
     "label": "Hotspot Login URL",
     "description": "Exact router login URL (e.g. http://192.168.88.1/login) passed to the guest checkout as linklogin. When set, the checkout only ever redirects to THIS URL — set it in production to stop voucher fragments reaching any other local host. When empty, any private/loopback/link-local IP login URL is accepted (development fallback)."
+   },
+   {
+    "fieldname": "hotspot_portal_return_prefix",
+    "fieldtype": "Data",
+    "label": "Hotspot Portal Return Prefix",
+    "description": "Pinned https prefix the guest checkout may return the voucher fragment to (e.g. https://radius.giftmugweni.com/login/). Lets the droplet-hosted captive-portal page receive #rd-voucher= after payment. When empty, the built-in default prefix is used; only this single host/path is ever allowed."
    }
   ],
  "grid_page_length": 50,
