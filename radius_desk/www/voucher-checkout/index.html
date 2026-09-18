@@ -1,4 +1,4 @@
-{% if embed %}{% extends "radius_desk/www/voucher-checkout/embed_base.html" %}{% else %}{% extends "templates/web.html" %}{% endif %} {% block style %}{{ super() }}<link rel="stylesheet" href="/assets/radius_desk/css/hotspot-theme.css?v=20260916-2">{% endblock %} {% block title %}{{ _("Buy WiFi Voucher") }}{% endblock %} {%
+{% if embed %}{% extends "radius_desk/www/voucher-checkout/embed_base.html" %}{% else %}{% extends "templates/web.html" %}{% endif %} {% block style %}{{ super() }}<link rel="stylesheet" href="/assets/radius_desk/css/hotspot-theme.css?v=20260918-1">{% endblock %} {% block title %}{{ _("Buy WiFi Voucher") }}{% endblock %} {%
 block page_content %}
 	{% if embed %}
 	<script>
@@ -10,6 +10,11 @@ block page_content %}
 	</style>
 	{% endif %}
 <div class="voucher-checkout" style="max-width: 640px; margin: 0 auto">
+	<div class="rd-brand">
+		<img src="/assets/radius_desk/img/njeremoto-logo.png" alt="Njeremoto" width="84" height="84">
+		<h2>Njeremoto Internet Cafe</h2>
+		<p>{{ _("Fast, affordable WiFi — pay with mobile money") }}</p>
+	</div>
 	<h3 class="mb-4">{{ _("Buy WiFi Voucher") }}</h3>
 
 	{% if not plans %}

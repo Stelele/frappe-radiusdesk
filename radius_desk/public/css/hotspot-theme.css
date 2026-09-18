@@ -1,8 +1,9 @@
 /* Njeremoto hotspot theme for the guest voucher portal. Scoped to
-body[data-path="voucher-checkout"] so no other website page is affected. */
+body[data-path="voucher-checkout"] so no other website page is affected.
+Tokens mirror the droplet portal (login/njeremoto): bg #0b1e24, card #102e36,
+radius 14px, teal #1EBAB9. */
 body[data-path="voucher-checkout"] {
-	background: #1a1a2e;
-	background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+	background: #0b1e24;
 	color: #fff;
 	min-height: 100%;
 }
@@ -32,8 +33,8 @@ body[data-path="voucher-checkout"] .rd-modal-card {
 	margin: 8vh auto;
 	padding: 24px 20px;
 	border: 1px solid rgba(255, 255, 255, 0.15);
-	border-radius: 12px;
-	background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+	border-radius: 14px;
+	background: #102e36;
 	color: #fff;
 }
 body[data-path="voucher-checkout"] .rd-modal-close {
@@ -67,9 +68,9 @@ body[data-path="voucher-checkout"] #checkout-panel label .text-danger {
 }
 body[data-path="voucher-checkout"] .voucher-checkout .card,
 body[data-path="voucher-checkout"] .rd-embed .card {
-	background: rgba(255, 255, 255, 0.08);
+	background: #102e36;
 	border: 1px solid rgba(255, 255, 255, 0.15);
-	border-radius: 8px;
+	border-radius: 14px;
 	color: #fff;
 }
 body[data-path="voucher-checkout"] .btn-primary {
@@ -94,19 +95,19 @@ body[data-path="voucher-checkout"] .btn-outline-secondary {
 }
 body[data-path="voucher-checkout"] .form-control {
 	height: 44px;
-	border-radius: 6px;
-	border: 1px solid transparent;
-	background-color: rgba(255, 255, 255, 0.85);
-	color: #1a1a2e;
+	border-radius: 8px;
+	border: 1px solid rgba(255, 255, 255, 0.2);
+	background-color: rgba(255, 255, 255, 0.07);
+	color: #fff;
 }
 body[data-path="voucher-checkout"] .form-control:focus {
 	border-color: #1EBAB9;
 	box-shadow: 0 0 0 2px rgba(30, 186, 185, 0.5);
-	background-color: #fff;
-	color: #1a1a2e;
+	background-color: rgba(255, 255, 255, 0.12);
+	color: #fff;
 }
 body[data-path="voucher-checkout"] .form-control::placeholder {
-	color: rgba(26, 26, 46, 0.55);
+	color: rgba(255, 255, 255, 0.35);
 }
 body[data-path="voucher-checkout"] .text-muted {
 	color: rgba(255, 255, 255, 0.6) !important;
@@ -137,20 +138,40 @@ body[data-path="voucher-checkout"] #voucher-code {
 	border-radius: 6px;
 }
 body[data-path="voucher-checkout"] .navbar {
-	background: #141428 !important;
-	border-bottom: none !important;
+	background: #102e36 !important;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.12) !important;
 }
 body[data-path="voucher-checkout"] .navbar .navbar-brand,
 body[data-path="voucher-checkout"] .navbar .nav-link {
 	color: #fff !important;
 }
 body[data-path="voucher-checkout"] .navbar .dropdown-menu {
-	background: #1a1a2e;
+	background: #102e36;
 }
 body[data-path="voucher-checkout"] .web-footer {
-	background: #141428;
-	border-top: none !important;
+	background: #102e36;
+	border-top: 1px solid rgba(255, 255, 255, 0.12) !important;
 	color: rgba(255, 255, 255, 0.6);
+}
+/* Portal brand header: bird + cafe name, mirrors droplet login pages. */
+body[data-path="voucher-checkout"] .rd-brand {
+	text-align: center;
+	margin: 20px 0 4px;
+}
+body[data-path="voucher-checkout"] .rd-brand img {
+	height: 84px;
+	width: auto;
+}
+body[data-path="voucher-checkout"] .rd-brand h2 {
+	color: #fff;
+	font-size: 22px;
+	letter-spacing: 1px;
+	margin: 10px 0 2px;
+}
+body[data-path="voucher-checkout"] .rd-brand p {
+	color: rgba(255, 255, 255, 0.6);
+	font-size: 13px;
+	margin: 0 0 8px;
 }
 body[data-path="voucher-checkout"] .breadcrumb {
 	background: transparent;
@@ -159,13 +180,13 @@ body[data-path="voucher-checkout"] .breadcrumb a {
 	color: #1EBAB9;
 }
 body[data-path="voucher-checkout"] .modal-content {
-	background: #1a1a2e;
+	background: #102e36;
 	color: #fff;
 	border: 1px solid rgba(255, 255, 255, 0.15);
-	border-radius: 8px;
+	border-radius: 14px;
 }
 body[data-path="voucher-checkout"] .modal-backdrop {
-	background: #0f3460;
+	background: #0b1e24;
 }
 body[data-path="voucher-checkout"] .modal-header .close,
 body[data-path="voucher-checkout"] .modal-header .btn-close {
@@ -179,10 +200,10 @@ body[data-path="voucher-checkout"] .rd-method-row {
 body[data-path="voucher-checkout"] .rd-method-card {
 	flex: 1 1 0;
 	margin: 0;
-	padding: 10px 4px;
+	padding: 12px 4px;
 	border: 1px solid rgba(255, 255, 255, 0.15);
 	border-radius: 8px;
-	background: rgba(255, 255, 255, 0.08);
+	background: rgba(255, 255, 255, 0.07);
 	color: #fff;
 	font-family: inherit;
 	font-size: 14px;
