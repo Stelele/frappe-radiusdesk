@@ -26,9 +26,18 @@ def get_context(context):
 		# Production pins the exact router login URL in Radius Desk Settings;
 		# when unset, the validator falls back to the private-IP heuristic.
 		expected = frappe.db.get_single_value("Radius Desk Settings", "hotspot_login_url") or None
+		# Captive-portal return leg: after payment the portal redirects to the
+		# portal login page itself (droplet, trusted HTTPS) with #rd-voucher=.
+		# The validator only ever allows this single pinned https prefix.
+		return_prefix = (
+			frappe.db.get_single_value("Radius Desk Settings", "hotspot_portal_return_prefix")
+			or "https://radius.giftmugweni.com/login/"
+		)
 		# NOTE: embed_json is rendered with | safe in index.html — only values
 		# validated by validate_hotspot_url may ever go into it (charset is
 		# injection-safe by design).
-		context.linklogin = validate_hotspot_url(frappe.form_dict.get("linklogin"), expected_url=expected)
+		context.linklogin = validate_hotspot_url(
+			frappe.form_dict.get("linklogin"), expected_url=expected, return_prefix=return_prefix
+		)
 		context.linkorig = validate_hotspot_url(frappe.form_dict.get("linkorig"), expected_url=expected)
 		context.embed_json = json.dumps({"linklogin": context.linklogin, "linkorig": context.linkorig})

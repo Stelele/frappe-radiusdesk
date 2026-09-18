@@ -15,7 +15,11 @@ from frappe import _
 _SAFE_URL_RE = re.compile(r"^[A-Za-z0-9:/.?=&%_+\[\]-]+$")
 
 
-def validate_hotspot_url(url: str | None, expected_url: str | None = None) -> str | None:
+def validate_hotspot_url(
+	url: str | None,
+	expected_url: str | None = None,
+	return_prefix: str | None = None,
+) -> str | None:
 	"""Return the URL unchanged only if it points at a router: http(s) scheme
 	and a private / loopback / link-local IP-literal host, with no userinfo and
 	no unexpected characters. Anything else returns None so callers drop the
@@ -25,7 +29,19 @@ def validate_hotspot_url(url: str | None, expected_url: str | None = None) -> st
 	production), the URL must match it EXACTLY — otherwise a crafted checkout
 	link could deliver the voucher fragment to any other host on the local
 	network. The private-IP heuristic alone is only a development fallback.
+
+	When ``return_prefix`` is set (Radius Desk Settings > Hotspot Portal Return
+	Prefix), an https URL on that exact host whose path starts with the prefix
+	path is also accepted, query string preserved. This is the captive-portal
+	return leg: after payment the portal redirects to the portal login page
+	(e.g. https://radius.giftmugweni.com/login/...) with the voucher code in a
+	#rd-voucher fragment. The host allowlist stays a single pinned operator
+	domain — anything else still returns None.
 	"""
+	if return_prefix:
+		portal = _match_portal_return_url(url, return_prefix)
+		if portal is not None:
+			return portal
 	cleaned = _sanitize_hotspot_url(url)
 	if cleaned is None:
 		return None
@@ -34,6 +50,42 @@ def validate_hotspot_url(url: str | None, expected_url: str | None = None) -> st
 		if not expected or cleaned != expected:
 			return None
 	return cleaned
+
+
+def _match_portal_return_url(url: str | None, return_prefix: str | None) -> str | None:
+	"""Match a captive-portal return URL against a pinned https prefix.
+
+	Requires: https scheme, exact same host (and port) as the prefix, path
+	starting with the prefix path, no userinfo, and the conservative charset.
+	Returns the full URL (query preserved — the login page needs its params)
+	or None.
+	"""
+	if not url or not return_prefix:
+		return None
+	try:
+		u = urlsplit(url.strip())
+		p = urlsplit(return_prefix.strip())
+	except ValueError:
+		return None
+	if p.scheme != "https" or not p.hostname or not p.path:
+		return None  # fail closed on a misconfigured prefix
+	if u.scheme != "https":
+		return None
+	if u.username or u.password:
+		return None
+	if (u.hostname or "").lower() != p.hostname.lower():
+		return None
+	try:
+		ports_match = (u.port or 443) == (p.port or 443)
+	except ValueError:
+		return None  # non-numeric (or out-of-range) port — drop, don't 500
+	if not ports_match:
+		return None
+	if not (u.path or "/").startswith(p.path):
+		return None
+	if not _SAFE_URL_RE.fullmatch(url.strip()):
+		return None
+	return url.strip()
 
 
 def _sanitize_hotspot_url(url: str | None) -> str | None:
