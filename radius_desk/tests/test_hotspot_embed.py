@@ -103,6 +103,14 @@ class TestValidateHotspotUrl(IntegrationTestCase):
 			"http://192.168.88.1/login",
 		)
 
+	def test_portal_return_rejects_non_numeric_port_without_raising(self):
+		prefix = "https://radius.giftmugweni.com/login/"
+		self.assertIsNone(
+			validate_hotspot_url(
+				"https://radius.giftmugweni.com:abc/login/njeremoto/", return_prefix=prefix
+			)
+		)
+
 	def test_misconfigured_prefix_fails_closed(self):
 		self.assertIsNone(
 			validate_hotspot_url(

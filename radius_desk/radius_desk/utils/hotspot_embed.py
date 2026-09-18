@@ -75,7 +75,11 @@ def _match_portal_return_url(url: str | None, return_prefix: str | None) -> str 
 		return None
 	if (u.hostname or "").lower() != p.hostname.lower():
 		return None
-	if (u.port or 443) != (p.port or 443):
+	try:
+		ports_match = (u.port or 443) == (p.port or 443)
+	except ValueError:
+		return None  # non-numeric (or out-of-range) port — drop, don't 500
+	if not ports_match:
 		return None
 	if not (u.path or "/").startswith(p.path):
 		return None
