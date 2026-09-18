@@ -103,8 +103,8 @@ The app creates a system user `radius-desk-system@example.com` with role `Radius
 
 1. Public page: `/voucher-checkout/` — customer selects a plan, enters phone number, chooses payment method.
 2. `create_web_checkout` creates a `Voucher Sale` in `Draft` status, initiates PesaPay payment, and returns a `checkout_token`.
-3. The page polls `get_voucher_sale_status` every 3s.
-4. On PesaPay SUCCESS, the scheduler fires `on_payment_authorized` → fulfillment → voucher code stamped on invoice.
+3. The page polls `confirm_voucher_web_checkout` with the `poll_url` every 3s; on gateway SUCCESS it confirms and fulfills immediately.
+4. The PesaPay webhook (`on_payment_authorized`) and scheduler are fallback only.
 5. The voucher code appears in the result panel and is delivered to the hotspot login page via URL fragment (`#rd-voucher=<code>`).
 
 #### 3. Admin / Retry Flow
@@ -136,7 +136,7 @@ Create **Voucher Plan** records (DocType: `Voucher Plan`) with:
 | **company** | Link → Company | Yes | Company owning the plan |
 | **radius_realm_id** | Data | Yes | RadiusDesk realm ID |
 | **radius_profile_id** | Data | Yes | RadiusDesk profile ID |
-| **price** | Currency, Read-only | Synced from item's selling price list |
+| **price** | Currency, Read-only | Yes* | Synced from the item's selling price list (falls back to plan price) |
 | **currency** | Link → Currency | Yes | Must match company's default currency |
 | **never_expire** | Check | No | If enabled, voucher never expires |
 | **sort_order** | Int | No | Grid ordering |
@@ -160,7 +160,7 @@ Then create a Payment Gateway record linking to the PesaPay Settings, and a Mode
 | "Payment could not be initiated" | Missing Radius Desk Settings (server_url, username, password, cloud_id, default_company, default_walkin_customer, pesepay_gateway) | Complete all seven required fields in Radius Desk Settings |
 | Voucher code never appears on POS receipt | Fulfillment job stuck or RadiusDesk API error | Check server logs for `RadiusDeskException`; verify RadiusDesk credentials |
 | Invoice submits but no voucher sale/code is created | Voucher Plan item has no Item Price in the selling price list (item is silently skipped, log-only) | Set an Item Price in the configured selling price list; check server logs for `RadiusDesk auto voucher` errors |
-| Hotspot login URL rejected | URL has userinfo, non-private IP, or disallowed characters | Use `validate_hotspot_url` — only private/loopback/link-local IPs allowed; set `Hotspot Login URL` in production to exact domain |
+| Hotspot login URL rejected | URL has userinfo, non-private IP, or disallowed characters | `Hotspot Login URL` must be the exact router **IP** URL (hostnames are rejected); use `validate_hotspot_url` — only private/loopback/link-local IPs allowed. Configure a pinned HTTPS production domain via `Hotspot Portal Return Prefix` instead |
 | "PesaPay does not support EcoCash payments in INR" | Unsupported method/currency combo | EcoCash settles only in USD or ZiG; switch plan currency or use a supported method |
 | Daily POS opening entry fails | Missing pesepay_gateway or default_company in Settings | Configure both in Radius Desk Settings |
 | Integration Request stays in `Queued` | Scheduler not running or webhook not fired | Ensure the cron scheduler runs `retry_fulfillment_failed_sales` every 5 min; verify PesaPay webhook reaches the site |

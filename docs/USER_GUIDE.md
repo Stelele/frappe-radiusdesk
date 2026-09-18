@@ -96,7 +96,7 @@ Once the status becomes `Completed`:
 
 When **Hotspot Portal Return Prefix** is configured in Radius Desk Settings:
 
-1. After payment, the guest checkout redirects to the portal login page whose URL exactly matches the pinned prefix.
+1. After payment, the guest checkout redirects to a portal login URL whose host and port match the pinned prefix and whose path starts with the prefix path (longer paths and query strings are allowed).
 2. The voucher code is appended as a URL fragment (`#rd-voucher=<code>`).
 3. The captive portal reads the fragment and provisions the customer's access.
 4. If the return URL does not match the pinned prefix, the fragment is dropped and the code is not delivered — fail-closed security.

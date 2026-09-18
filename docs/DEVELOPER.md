@@ -31,8 +31,8 @@ The app follows the Frappe framework layering pattern with these key layers:
 
 1. Customer selects plan + enters phone + payment method on `/voucher-checkout/`.
 2. `create_web_checkout` creates `Voucher Sale` (`Draft`), calls `initiate_voucher_payment`, returns `checkout_token`.
-3. Page polls `get_voucher_sale_status` every 3s.
-4. On gateway SUCCESS, PesaPay webhook fires `on_payment_authorized("Completed")`.
+3. Page polls `confirm_voucher_web_checkout` with the `poll_url` every 3s; on gateway SUCCESS it fulfills immediately.
+4. The PesaPay webhook (`on_payment_authorized`) and scheduler are fallback only.
 5. `fulfill_voucher_sale` creates the RadiusDesk voucher, stamps the invoice, promotes to `Completed`.
 6. Voucher code delivered via `#rd-voucher=<code>` fragment.
 
@@ -100,7 +100,7 @@ All methods are in `radius_desk.radius_desk.doctype.voucher_sale.voucher_sale`. 
   - `invoice_name` (Dynamic Link, options = invoice_doctype) — the actual invoice name.
   - `checkout_token` (Data, Unique search index) — unguessable token for web polling.
 
-**Status flow**: `Draft` → `Payment Pending` → `Payment Confirmed` → (`Voucher Created` / `Completed`) / `Payment Failed` → `Fulfillment Failed`.
+**Status flow**: `Draft` → `Payment Pending` → (`Payment Failed` on gateway/initiation failure | `Payment Confirmed` → `Voucher Created` / `Completed`) → `Fulfillment Failed` on fulfillment error (retryable back to `Payment Confirmed`).
 
 ### Radius Desk Settings (singleton)
 
@@ -146,8 +146,8 @@ bench --site <site-name> run-tests --app radius_desk
 Or individually:
 
 ```bash
-bench --site <site-name> test radius_desk.test_utils.test_hotspot_embed
-bench --site <site-name> test radius_desk.test_connector.TestRadiusDeskConnector
+bench --site <site-name> run-tests --app radius_desk --module radius_desk.tests.test_hotspot_embed
+bench --site <site-name> run-tests --app radius_desk --module radius_desk.tests.test_connector --test TestRadiusDeskConnector
 ```
 
 ---
@@ -163,7 +163,7 @@ bench --site <site-name> test radius_desk.test_connector.TestRadiusDeskConnector
 ### Install the App on a Bench Site
 
 ```bash
-cd /home/gift/Documents/code-projects/frappe/v16
+cd <bench-dir>
 bench get-app https://github.com/stelele/frappe-radiusdesk --branch version-16
 bench --site <site-name> install-app radius_desk
 ```
@@ -179,7 +179,9 @@ bench --site <site-name> list-apps
 
 | Command | Description |
 |---|---|
-| `bench --site <site> reload-app radius_desk` | Reload app code after changes. |
+| `bench restart` | Restart bench processes after code changes. |
+| `bench schedule` | Start the scheduler process. |
+| `bench --site <site> enable-scheduler` | Enable scheduling on a site. |
 | `bench --site <site> uninstall-app radius_desk` | Uninstall the app. |
 | `bench --site <site> clear-cache` | Clear the site cache. |
 | `pre-commit run --all-files` | Run ruff + eslint + prettier checks. |
