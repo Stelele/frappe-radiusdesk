@@ -155,6 +155,12 @@ class TestEmbedPageRendering(IntegrationTestCase):
 		self.assertIn('"linklogin": null', html)
 		self.assertNotIn("alert(1)", html)
 
+	def test_portal_brand_header_rendered(self):
+		html = self._get("/voucher-checkout/?embed=1")
+		self.assertIn("rd-brand", html)
+		self.assertIn("/assets/radius_desk/img/njeremoto-logo.png", html)
+		self.assertIn("Njeremoto Internet Cafe", html)
+
 	def test_theme_stylesheet_linked_in_both_modes(self):
 		for path in ("/voucher-checkout/", "/voucher-checkout/?embed=1"):
 			html = self._get(path)
