@@ -115,8 +115,8 @@ The app creates a system user `radius-desk-system@example.com` with role `Radius
 
 1. Public page: `/voucher-checkout/` — customer selects a plan, enters phone number, chooses payment method.
 2. `create_web_checkout` creates a `Voucher Sale` in `Draft` status, initiates PesaPay payment, and returns a `checkout_token`.
-3. The page polls `confirm_voucher_web_checkout` with the `poll_url` every 3s; on gateway SUCCESS it confirms and fulfills immediately.
-4. The PesaPay webhook (`on_payment_authorized`) and scheduler are fallback only.
+3. The page polls `confirm_voucher_web_checkout` with the `checkout_token` every 3s — the endpoint checks PesaPay via the sale's stored `poll_url` and confirms + fulfills on SUCCESS.
+4. The PesaPay webhook (`on_payment_authorized`) is the fallback for confirming/fulfilling paid checkouts; the 5-minute scheduler only retries stale `Fulfillment Failed` sales via `fulfill_voucher_sale` — it does not confirm `Payment Pending` payments.
 5. The voucher code appears in the result panel and is delivered to the hotspot login page via URL fragment (`#rd-voucher=<code>`).
 
 #### 3. Admin / Retry Flow

@@ -31,8 +31,8 @@ The app follows the Frappe framework layering pattern with these key layers:
 
 1. Customer selects plan + enters phone + payment method on `/voucher-checkout/`.
 2. `create_web_checkout` creates `Voucher Sale` (`Draft`), calls `initiate_voucher_payment`, returns `checkout_token`.
-3. Page polls `confirm_voucher_web_checkout` with the `poll_url` every 3s; on gateway SUCCESS it fulfills immediately.
-4. The PesaPay webhook (`on_payment_authorized`) and scheduler are fallback only.
+3. Page polls `confirm_voucher_web_checkout(checkout_token)` every 3s — `poll_url` stays an internal sale field; the endpoint checks PesaPay via it and fulfills on SUCCESS.
+4. The PesaPay webhook (`on_payment_authorized`) is the payment fallback; the scheduler only retries stale `Fulfillment Failed` sales via `fulfill_voucher_sale` (it does not confirm pending payments).
 5. `fulfill_voucher_sale` creates the RadiusDesk voucher, stamps the invoice, promotes to `Completed`.
 6. Voucher code delivered via `#rd-voucher=<code>` fragment.
 
