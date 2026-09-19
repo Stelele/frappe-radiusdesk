@@ -34,6 +34,18 @@ A Frappe app that integrates with RadiusDesk (cake4) API to automate voucher gen
 
 ---
 
+### Screenshots
+
+Self-service guest checkout (`/voucher-checkout/`):
+
+![Voucher checkout](docs/images/voucher-checkout.png)
+
+Voucher Sales and Voucher Plans (desk):
+
+![Voucher Sales](docs/images/voucher-sale-list.png)
+
+![Voucher Plans](docs/images/voucher-plan-list.png)
+
 ## Installation
 
 ### Via Bench CLI
